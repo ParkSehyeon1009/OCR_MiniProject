@@ -1,4 +1,4 @@
-from pydantic_setting import BaseSetting
+from pydantic_settings import BaseSetting
 
 class Setting(BaseSetting):
     APP_NAME: str = "OCR MiniProject"
