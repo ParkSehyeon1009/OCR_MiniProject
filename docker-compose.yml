@@ -24,7 +24,7 @@ services:
       dockerfile: Dockerfile
     container_name: ocr-api
     env_file:
-      - ./backend/.env
+      - ./backend/.env.example
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-pdfbrief}
       TZ: Asia/Seoul
