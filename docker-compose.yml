@@ -1,7 +1,8 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: pdfbrief-db
+    container_name: ocr-db
+    restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -21,7 +22,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: pdfbrief-api
+    container_name: ocr-api
     env_file:
       - ./backend/.env
     environment:
@@ -36,6 +37,18 @@ services:
       - ./backend/app:/app/app
       - ./backend/uploads:/app/uploads
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: ocr-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
 
 volumes:
   pgdata:
