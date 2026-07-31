@@ -1,0 +1,53 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+
+# ===== Env (never commit) =====
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ===== Test / Cache =====
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ===== Node / React =====
+node_modules/
+dist/
+build/
+.vite/
+*.local
+
+# ===== Uploads / Logs =====
+uploads/
+storage/
+logs/
+*.log
+
+# ===== IDE =====
+.vscode/
+.idea/
+*.swp
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ===== DB =====
+*.db
+*.sqlite3
+pgdata/
