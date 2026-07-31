@@ -28,7 +28,3 @@ openai
 # opencv-python-headless==4.12.0.88
 # Pillow==11.3.0
 # numpy==2.2.6
-
-# --- DB ---
-SQLAlchemy==2.0.51
-psycopg2-binary==2.9.12
