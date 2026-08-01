@@ -1,0 +1,120 @@
+.test-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+  font-family: system-ui, sans-serif;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.test-page h1 {
+  font-size: 1.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.test-page .subtitle {
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.test-page section {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  background: #fafafa;
+}
+
+.test-page section h2 {
+  font-size: 1.1rem;
+  margin: 0 0 1rem;
+}
+
+.test-page .row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.test-page label.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.test-page button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: #1a1a1a;
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.test-page button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.test-page .error-banner {
+  background: #fdecea;
+  border: 1px solid #f5c2c0;
+  color: #8a1f1f;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.test-page .doc-card,
+.test-page .analysis-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+  background: #fff;
+  font-size: 0.85rem;
+}
+
+.test-page .doc-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+}
+
+.test-page .doc-card dt {
+  color: #666;
+}
+
+.test-page .doc-card dd {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  word-break: break-all;
+}
+
+.test-page .analysis-card + .analysis-card {
+  margin-top: 0.5rem;
+}
+
+.test-page .analysis-meta {
+  color: #666;
+  margin-bottom: 0.5rem;
+}
+
+.test-page pre {
+  background: #f4f4f4;
+  padding: 0.5rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin: 0;
+}
+
+.test-page .empty {
+  color: #999;
+  font-size: 0.9rem;
+}

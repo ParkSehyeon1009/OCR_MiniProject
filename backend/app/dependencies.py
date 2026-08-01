@@ -21,13 +21,21 @@ from sqlalchemy.orm import Session
 from app.ai.client_protocol import AIClientProtocol
 from app.ai.fake_client import FakeAIClient
 from app.ai.openai_client import OpenAIClient
+from app.analyzers.category_analyzer import CategoryAnalyzer
 from app.analyzers.protocol import Analyzer
+from app.analyzers.summary_analyzer import SummaryAnalyzer
 from app.core.config import settings
 from app.db.session import get_db
+from app.extractors.docx_extractor import DocxExtractor
 from app.extractors.fake_extractor import FakeExtractor
+from app.extractors.hwpx_extractor import HwpxExtractor
+from app.extractors.ocr_extractor import ImageExtractor
+from app.extractors.pdf_extractor import PdfExtractor
 from app.extractors.registry import ExtractorRegistry
 from app.repositories.analysis_repository import AnalysisRepository
 from app.repositories.document_repository import DocumentRepository
+from app.services.analysis_service import AnalysisService
+from app.services.extraction_service import ExtractionService
 
 
 @lru_cache
@@ -43,25 +51,24 @@ def get_ai_client() -> AIClientProtocol:
 @lru_cache
 def get_extractor_registry() -> ExtractorRegistry:
     registry = ExtractorRegistry()
-    # TODO: 담당자 A가 pdf/docx/hwpx/ocr extractor를 구현한 뒤 아래처럼 등록하세요.
-    #   registry.register("pdf", PdfExtractor())
-    #   registry.register("docx", DocxExtractor())
-    #   registry.register("hwpx", HwpxExtractor())
-    #   registry.register("png", OcrExtractor())
-    #   registry.register("jpg", OcrExtractor())
-    #   registry.register("jpeg", OcrExtractor())
-    # 지금은 참고/개발용으로 FakeExtractor만 등록해둔다.
+    registry.register("pdf", PdfExtractor())
+    registry.register("docx", DocxExtractor())
+    registry.register("hwpx", HwpxExtractor())
+    registry.register("png", ImageExtractor())
+    registry.register("jpg", ImageExtractor())
+    registry.register("jpeg", ImageExtractor())
+    # 참고/개발용 fake 타입은 그대로 유지한다.
     registry.register("fake", FakeExtractor())
     return registry
 
 
 @lru_cache
 def get_analyzer_registry() -> dict[str, Analyzer]:
-    # TODO: 담당자 B가 summary_analyzer.py / category_analyzer.py를 구현한 뒤
-    #   analyzer_type 문자열을 key로 등록하세요.
-    #   registry["summary"] = SummaryAnalyzer(get_ai_client())
-    #   registry["category"] = CategoryAnalyzer(get_ai_client())
-    registry: dict[str, Analyzer] = {}
+    ai_client = get_ai_client()
+    registry: dict[str, Analyzer] = {
+        "summary": SummaryAnalyzer(ai_client),
+        "category": CategoryAnalyzer(ai_client),
+    }
     return registry
 
 
@@ -71,3 +78,29 @@ def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository
 
 def get_analysis_repository(db: Session = Depends(get_db)) -> AnalysisRepository:
     return AnalysisRepository(db)
+
+
+def get_analysis_service(
+    db: Session = Depends(get_db),
+    document_repository: DocumentRepository = Depends(get_document_repository),
+    analysis_repository: AnalysisRepository = Depends(get_analysis_repository),
+    analyzer_registry: dict[str, Analyzer] = Depends(get_analyzer_registry),
+) -> AnalysisService:
+    return AnalysisService(
+        db=db,
+        document_repository=document_repository,
+        analysis_repository=analysis_repository,
+        analyzer_registry=analyzer_registry,
+    )
+
+
+def get_extraction_service(
+    db: Session = Depends(get_db),
+    document_repository: DocumentRepository = Depends(get_document_repository),
+    extractor_registry: ExtractorRegistry = Depends(get_extractor_registry),
+) -> ExtractionService:
+    return ExtractionService(
+        db=db,
+        document_repository=document_repository,
+        extractor_registry=extractor_registry,
+    )

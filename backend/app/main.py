@@ -89,9 +89,9 @@ def health() -> dict[str, str]:
 # --- 라우터 등록 자리 -------------------------------------------------------
 # 담당자가 각자 라우터 파일(app/api/routes/*.py)을 만든 뒤 아래 두 줄(해당 담당자 분)의
 # 주석을 해제하세요. 아직 파일이 없는 상태로 import하면 앱이 뜨지 않습니다.
-# from app.api.routes import upload_router      # 담당자 A: POST /api/documents
-# from app.api.routes import analysis_router    # 담당자 B: POST /api/documents/{id}/analyze
+from app.api.routes import upload_router      # 담당자 A: POST /api/documents
+from app.api.routes import analysis_router    # 담당자 B: POST /api/documents/{id}/analyze
 # from app.api.routes import document_router    # 담당자 C: GET /api/documents, /{id}, /download, DELETE
-# app.include_router(upload_router.router)
-# app.include_router(analysis_router.router)
+app.include_router(upload_router.router)
+app.include_router(analysis_router.router)
 # app.include_router(document_router.router)
