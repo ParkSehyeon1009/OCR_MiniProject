@@ -1,20 +1,23 @@
+from threading import Lock
+
 import numpy as np
-from PIL import Image
 from paddleocr import PaddleOCR
+from PIL import Image
 
 from app.extractors.layout import LayoutElement
-from app.extractors.protocol import ExtractResult, TextExtractor
-from app.models.enums import ExtractMethod
 
 
 class OcrExtractor:
-    def __init__(self):
-        self.ocr = PaddleOCR(
+    def __init__(self) -> None:
+        self._ocr = PaddleOCR(
             lang="korean",
             use_doc_orientation_classify=True,
             use_doc_unwarping=True,
             use_textline_orientation=True,
         )
+
+        # 여러 요청이 같은 OCR 모델을 동시에 사용하지 못하도록 제어한다.
+        self._inference_lock = Lock()
 
     def extract(
         self,
@@ -22,65 +25,56 @@ class OcrExtractor:
         offset_x: float = 0,
         offset_y: float = 0,
     ) -> list[LayoutElement]:
+        rgb_image = image.convert("RGB")
 
-        result = self.ocr.ocr(np.array(image))
+        # 동시에 여러 요청이 들어와도 OCR은 한 번에 하나씩 실행한다.
+        with self._inference_lock:
+            results = self._ocr.ocr(np.asarray(rgb_image))
+
+        if not results:
+            return []
+
+        page = results[0]
+
+        if page is None:
+            return []
+
+        texts = page.get("rec_texts", [])
+        scores = page.get("rec_scores", [])
+
+        boxes = page.get("rec_boxes")
+
+        # rec_boxes가 없으면 다각형 좌표인 rec_polys를 사용한다.
+        if boxes is None or len(boxes) == 0:
+            boxes = page.get("rec_polys", [])
 
         elements: list[LayoutElement] = []
 
-        if not result:
-            return elements
-
-        page = result[0]
-
-        texts = page["rec_texts"]
-        scores = page["rec_scores"]
-        boxes = page["rec_boxes"]
-
         for text, score, box in zip(texts, scores, boxes):
+            normalized_text = str(text).strip()
 
-            text = text.strip()
-
-            if not text:
+            if not normalized_text:
                 continue
 
-            if len(box.shape) == 1:
-                # rec_boxes: [x1, y1, x2, y2]
-                x = float(box[0]) + offset_x
-                y = float(box[1]) + offset_y
+            box_array = np.asarray(box)
+
+            if box_array.ndim == 1:
+                # rec_boxes 형식: [x1, y1, x2, y2]
+                x = float(box_array[0])
+                y = float(box_array[1])
             else:
-                # rec_polys: [[x,y], ...]
-                x = float(box[:, 0].min()) + offset_x
-                y = float(box[:, 1].min()) + offset_y
+                # rec_polys 형식: [[x1, y1], [x2, y2], ...]
+                x = float(box_array[:, 0].min())
+                y = float(box_array[:, 1].min())
 
             elements.append(
                 LayoutElement(
-                    x=x,
-                    y=y,
-                    content=text,
+                    x=x + offset_x,
+                    y=y + offset_y,
+                    content=normalized_text,
                     source="ocr",
                     confidence=float(score),
                 )
             )
 
         return elements
-
-
-class ImageExtractor(TextExtractor):
-    # 텍스트 레이어가 없는 단일 이미지 파일(png/jpg/jpeg) 전용 추출기.
-    # 좌표 계산 등 실제 OCR 로직은 OcrExtractor를 그대로 재사용한다.
-    def __init__(self) -> None:
-        self._ocr = OcrExtractor()
-
-    def extract(self, file_path: str) -> ExtractResult:
-        image = Image.open(file_path).convert("RGB")
-        elements = self._ocr.extract(image)
-        elements.sort(key=lambda e: (e.y, e.x))
-
-        content = "\n".join(element.content for element in elements)
-
-        return ExtractResult(
-            content=content,
-            page_count=1,
-            char_count=len(content),
-            extract_method=ExtractMethod.OCR.value,
-        )

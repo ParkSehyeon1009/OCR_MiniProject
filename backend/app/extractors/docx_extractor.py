@@ -1,21 +1,23 @@
-from docx import Document
-from docx.text.paragraph import Paragraph
-from docx.table import Table
-from docx.document import Document as DocxDocument
-from docx.oxml.text.paragraph import CT_P
-from docx.oxml.table import CT_Tbl
-from docx.oxml.ns import qn
-
+from collections.abc import Iterator
 from io import BytesIO
-from PIL import Image
+
+from docx import Document
+from docx.document import Document as DocxDocument
+from docx.oxml.table import CT_Tbl
+from docx.oxml.text.paragraph import CT_P
+from docx.oxml.ns import qn
+from docx.table import Table
+from docx.text.paragraph import Paragraph
+from PIL import Image, UnidentifiedImageError
 
 from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.protocol import ExtractResult, TextExtractor
 from app.models.enums import ExtractMethod
 
+
 class DocxExtractor(TextExtractor):
-    def __init__(self):
-        self.ocr = OcrExtractor()
+    def __init__(self, ocr: OcrExtractor) -> None:
+        self._ocr = ocr
 
     def extract(self, file_path: str) -> ExtractResult:
         doc = Document(file_path)
@@ -39,15 +41,15 @@ class DocxExtractor(TextExtractor):
             extract_method=ExtractMethod.DOCX.value,
         )
 
-    def _iter_block_items(self, doc: DocxDocument):
-
+    def _iter_block_items(
+        self,
+        doc: DocxDocument,
+    ) -> Iterator[Paragraph | Table]:
         parent = doc.element.body
 
         for child in parent.iterchildren():
-
             if isinstance(child, CT_P):
                 yield Paragraph(child, doc)
-
             elif isinstance(child, CT_Tbl):
                 yield Table(child, doc)
 
@@ -55,8 +57,7 @@ class DocxExtractor(TextExtractor):
         self,
         paragraph: Paragraph,
         contents: list[str],
-    ):
-
+    ) -> None:
         text = paragraph.text.strip()
 
         if text:
@@ -68,8 +69,7 @@ class DocxExtractor(TextExtractor):
         self,
         table: Table,
         contents: list[str],
-    ):
-
+    ) -> None:
         for row in table.rows:
 
             row_contents: list[str] = []
@@ -99,11 +99,7 @@ class DocxExtractor(TextExtractor):
         self,
         paragraph: Paragraph,
         contents: list[str],
-    ):
-        """
-        문단 내부 이미지 OCR
-        """
-
+    ) -> None:
         # paragraph 안의 drawing 태그 찾기
         drawings = paragraph._element.xpath(".//w:drawing")
 
@@ -134,16 +130,19 @@ class DocxExtractor(TextExtractor):
 
     def _ocr_image(self, image_bytes: bytes) -> str:
         try:
-            image = Image.open(BytesIO(image_bytes)).convert("RGB")
+            with Image.open(BytesIO(image_bytes)) as source_image:
+                image = source_image.convert("RGB")
+                elements = self._ocr.extract(image)
 
-            elements = self.ocr.extract(image)
-
+            elements.sort(key=lambda element: (element.y, element.x))
             return "\n".join(
                 element.content
                 for element in elements
                 if element.content.strip()
             )
-        except Exception:
+        except (UnidentifiedImageError, OSError):
+            # Word 내부에는 python-docx/Pillow가 해석하지 못하는 이미지 형식도
+            # 있을 수 있으므로 해당 이미지만 건너뛴다.
             return ""
 
     @staticmethod

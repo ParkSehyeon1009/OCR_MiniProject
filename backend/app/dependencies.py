@@ -29,7 +29,8 @@ from app.db.session import get_db
 from app.extractors.docx_extractor import DocxExtractor
 from app.extractors.fake_extractor import FakeExtractor
 from app.extractors.hwpx_extractor import HwpxExtractor
-from app.extractors.ocr_extractor import ImageExtractor
+from app.extractors.image_extractor import ImageExtractor
+from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.pdf_extractor import PdfExtractor
 from app.extractors.registry import ExtractorRegistry
 from app.repositories.analysis_repository import AnalysisRepository
@@ -51,12 +52,16 @@ def get_ai_client() -> AIClientProtocol:
 @lru_cache
 def get_extractor_registry() -> ExtractorRegistry:
     registry = ExtractorRegistry()
-    registry.register("pdf", PdfExtractor())
-    registry.register("docx", DocxExtractor())
-    registry.register("hwpx", HwpxExtractor())
-    registry.register("png", ImageExtractor())
-    registry.register("jpg", ImageExtractor())
-    registry.register("jpeg", ImageExtractor())
+
+    ocr = OcrExtractor()
+    image_extractor = ImageExtractor(ocr)
+
+    registry.register("pdf", PdfExtractor(ocr))
+    registry.register("docx", DocxExtractor(ocr))
+    registry.register("hwpx", HwpxExtractor(ocr))
+    registry.register("png", image_extractor)
+    registry.register("jpg", image_extractor)
+    registry.register("jpeg", image_extractor)
     # 참고/개발용 fake 타입은 그대로 유지한다.
     registry.register("fake", FakeExtractor())
     return registry
