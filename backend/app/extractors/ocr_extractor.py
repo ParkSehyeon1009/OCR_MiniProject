@@ -3,6 +3,8 @@ from PIL import Image
 from paddleocr import PaddleOCR
 
 from app.extractors.layout import LayoutElement
+from app.extractors.protocol import ExtractResult, TextExtractor
+from app.models.enums import ExtractMethod
 
 
 class OcrExtractor:
@@ -61,3 +63,24 @@ class OcrExtractor:
             )
 
         return elements
+
+
+class ImageExtractor(TextExtractor):
+    # 텍스트 레이어가 없는 단일 이미지 파일(png/jpg/jpeg) 전용 추출기.
+    # 좌표 계산 등 실제 OCR 로직은 OcrExtractor를 그대로 재사용한다.
+    def __init__(self) -> None:
+        self._ocr = OcrExtractor()
+
+    def extract(self, file_path: str) -> ExtractResult:
+        image = Image.open(file_path).convert("RGB")
+        elements = self._ocr.extract(image)
+        elements.sort(key=lambda e: (e.y, e.x))
+
+        content = "\n".join(element.content for element in elements)
+
+        return ExtractResult(
+            content=content,
+            page_count=1,
+            char_count=len(content),
+            extract_method=ExtractMethod.OCR.value,
+        )

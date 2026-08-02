@@ -4,13 +4,14 @@ from docx.table import Table
 from docx.document import Document as DocxDocument
 from docx.oxml.text.paragraph import CT_P
 from docx.oxml.table import CT_Tbl
+from docx.oxml.ns import qn
 
 from io import BytesIO
 from PIL import Image
 
 from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.protocol import ExtractResult, TextExtractor
-
+from app.models.enums import ExtractMethod
 
 class DocxExtractor(TextExtractor):
     def __init__(self):
@@ -23,19 +24,19 @@ class DocxExtractor(TextExtractor):
 
         for block in self._iter_block_items(doc):
 
-                if isinstance(block, Paragraph):
-                    self._extract_paragraph(block, contents)
+            if isinstance(block, Paragraph):
+                self._extract_paragraph(block, contents)
 
-                elif isinstance(block, Table):
-                    self._extract_table(block, contents)
+            elif isinstance(block, Table):
+                self._extract_table(block, contents)
 
         content = "\n".join(contents)
 
         return ExtractResult(
             content=content,
-            page_count=1,
+            page_count=self._count_pages(doc),
             char_count=len(content),
-            extract_method="docx",
+            extract_method=ExtractMethod.DOCX.value,
         )
 
     def _iter_block_items(self, doc: DocxDocument):
@@ -144,3 +145,14 @@ class DocxExtractor(TextExtractor):
             )
         except Exception:
             return ""
+
+    @staticmethod
+    def _count_pages(document: DocxDocument) -> int:
+        # python-docx는 렌더링 페이지 수를 제공하지 않으므로, 저자가 넣은
+        # 명시적 페이지 나눔(w:br type="page") 개수 + 1로 근사한다.
+        page_breaks = sum(
+            1
+            for br in document.element.body.iter(qn("w:br"))
+            if br.get(qn("w:type")) == "page"
+        )
+        return page_breaks + 1
