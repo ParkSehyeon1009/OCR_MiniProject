@@ -82,7 +82,7 @@ class PdfExtractor(TextExtractor):
                     elements.extend(image_elements)
                     has_ocr = True
 
-        # # 텍스트와 이미지 OCR 결과가 모두 없으면 페이지 전체를 OCR한다.
+        # 텍스트와 이미지 OCR 결과가 모두 없으면 페이지 전체를 OCR한다.
         if not elements:
             page_ocr_elements = self._extract_full_page_with_ocr(page)
 
