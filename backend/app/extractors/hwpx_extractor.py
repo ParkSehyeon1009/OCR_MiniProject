@@ -5,7 +5,7 @@ from io import BytesIO
 from urllib.parse import unquote
 from xml.etree import ElementTree as ET
 
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.protocol import ExtractResult, TextExtractor
@@ -138,9 +138,14 @@ class HwpxExtractor(TextExtractor):
 
         image_bytes = archive.read(image_path)
 
-        with Image.open(BytesIO(image_bytes)) as source_image:
-            image = source_image.convert("RGB")
-            elements = self._ocr.extract(image)
+        try:
+            with Image.open(BytesIO(image_bytes)) as source_image:
+                image = source_image.convert("RGB")
+                elements = self._ocr.extract(image)
+        except (UnidentifiedImageError, OSError):
+            # HWPX 내부에 Pillow가 해석하지 못하는 이미지가 있어도
+            # 문서 전체 추출은 중단하지 않고 해당 이미지만 건너뛴다.
+            return ""
 
         elements.sort(key=lambda element: (element.y, element.x))
         return "\n".join(
