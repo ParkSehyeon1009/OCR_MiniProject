@@ -1,3 +1,5 @@
+import asyncio
+
 from sqlalchemy.orm import Session
 
 from app.analyzers.protocol import Analyzer, AnalyzeResult
@@ -47,10 +49,16 @@ class AnalysisService:
             analyzers.append((analyzer_type, analyzer))
 
         content = document.extracted_text.content
-        results: list[tuple[str, AnalyzeResult]] = []
-        for analyzer_type, analyzer in analyzers:
-            result = await analyzer.analyze(content)
-            results.append((analyzer_type, result))
+        # summary/category는 서로 독립적인 AI 호출이므로 동시에 실행해
+        # 순차 실행 대비 전체 지연시간을 줄인다. gather는 인자 순서대로
+        # 결과를 반환하므로 analyzers와 analyzed는 위치 기준으로 대응된다.
+        analyzed = await asyncio.gather(
+            *(analyzer.analyze(content) for _, analyzer in analyzers)
+        )
+        results: list[tuple[str, AnalyzeResult]] = [
+            (analyzer_type, result)
+            for (analyzer_type, _), result in zip(analyzers, analyzed)
+        ]
 
         # DB 커밋은 AI 호출이 모두 끝난 뒤 한 트랜잭션으로 묶는다 — AI 응답을
         # 기다리는 동안 DB 트랜잭션을 열어두지 않기 위함.
