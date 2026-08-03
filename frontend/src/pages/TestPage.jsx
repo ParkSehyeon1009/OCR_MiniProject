@@ -4,6 +4,27 @@ import './TestPage.css'
 
 const ANALYZER_TYPES = ['summary', 'category']
 
+// analyzer_type마다 result의 구조가 달라서(§7 result: dict), 아는 형태는 보기 좋게
+// 풀어서 보여주고 모르는 형태(향후 추가될 analyzer)는 원본 JSON으로 안전하게 대체 표시한다.
+function renderAnalysisResult(analysis) {
+  const { analyzer_type, result } = analysis
+
+  if (analyzer_type === 'summary' && typeof result?.summary === 'string') {
+    return <p className="result-text">{result.summary}</p>
+  }
+
+  if (analyzer_type === 'category' && typeof result?.category === 'string') {
+    return (
+      <div className="result-category">
+        <span className="category-chip">{result.category}</span>
+        {result.reason && <p className="category-reason">{result.reason}</p>}
+      </div>
+    )
+  }
+
+  return <pre className="result-raw">{JSON.stringify(result, null, 2)}</pre>
+}
+
 function TestPage() {
   const [health, setHealth] = useState('checking...')
   const [selectedFile, setSelectedFile] = useState(null)
@@ -132,12 +153,22 @@ function TestPage() {
         {analyses.length > 0 ? (
           analyses.map((analysis) => (
             <div className="analysis-card" key={analysis.id}>
-              <div className="analysis-meta">
-                #{analysis.id} · {analysis.analyzer_type} · {analysis.provider}/{analysis.model_name}
-                {' · '}tokens_in={analysis.tokens_in ?? '-'} tokens_out={analysis.tokens_out ?? '-'}
-                {' '}latency={analysis.latency_ms ?? '-'}ms · {analysis.created_at}
+              <div className="analysis-header">
+                <span className={`type-badge type-${analysis.analyzer_type}`}>
+                  {analysis.analyzer_type}
+                </span>
+                <span className="analysis-source">
+                  #{analysis.id} · {analysis.provider}/{analysis.model_name}
+                </span>
               </div>
-              <pre>{JSON.stringify(analysis.result, null, 2)}</pre>
+
+              <div className="analysis-body">{renderAnalysisResult(analysis)}</div>
+
+              <div className="analysis-footer">
+                <span>tokens {analysis.tokens_in ?? '-'}→{analysis.tokens_out ?? '-'}</span>
+                <span>{analysis.latency_ms ?? '-'}ms</span>
+                <span>{analysis.created_at}</span>
+              </div>
             </div>
           ))
         ) : (
