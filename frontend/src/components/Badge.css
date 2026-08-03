@@ -1,0 +1,58 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-size: var(--c-font-sm);
+  line-height: 1;
+  padding: 5px 9px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-weight: 500;
+}
+
+.badge--empty {
+  color: var(--c-text-muted);
+  padding-inline: 0;
+}
+
+.badge--neutral {
+  color: var(--c-text);
+  background: var(--c-bg-subtle);
+  border-color: var(--c-border);
+}
+.badge--info {
+  color: var(--c-info);
+  background: var(--c-info-bg);
+  border-color: rgba(23, 92, 211, 0.25);
+}
+.badge--success {
+  color: var(--c-success);
+  background: var(--c-success-bg);
+  border-color: rgba(23, 128, 61, 0.25);
+}
+.badge--warning {
+  color: var(--c-warning);
+  background: var(--c-warning-bg);
+  border-color: rgba(154, 91, 0, 0.25);
+}
+.badge--danger {
+  color: var(--c-danger);
+  background: var(--c-danger-bg);
+  border-color: rgba(180, 35, 24, 0.25);
+}
+.badge--accent {
+  color: var(--c-accent);
+  background: var(--c-accent-bg);
+  border-color: var(--c-accent-border);
+}
+
+/* --- 카테고리 6종 --- */
+.badge-cat {
+  border-radius: var(--c-radius-sm);
+}
+.badge-cat--contract { color: #6b21a8; background: #f5eaff; border-color: #e2cbf7; }
+.badge-cat--report   { color: #175cd3; background: #eaf1fd; border-color: #c9dcf8; }
+.badge-cat--minutes  { color: #0e7490; background: #e5f6fa; border-color: #c2e6ef; }
+.badge-cat--notice   { color: #9a5b00; background: #fdf2e2; border-color: #f2ddba; }
+.badge-cat--manual   { color: #17803d; background: #e8f6ed; border-color: #c6e6d2; }
+.badge-cat--etc      { color: #6b6375; background: #f2f1f5; border-color: #e0dee4; }

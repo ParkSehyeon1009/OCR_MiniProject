@@ -85,17 +85,7 @@ def get_document(
         char_count=extracted.char_count if extracted else None,
         extract_method=extracted.extract_method if extracted else None,
         analyses=[
-            AnalysisResponse(
-                id=analysis.id,
-                analyzer_type=analysis.analyzer_type,
-                result=analysis.result_json,
-                provider=analysis.provider,
-                model_name=analysis.model_name,
-                tokens_in=analysis.tokens_in,
-                tokens_out=analysis.tokens_out,
-                latency_ms=analysis.latency_ms,
-                created_at=analysis.created_at,
-            )
+            AnalysisResponse.model_validate(analysis)
             for analysis in document.analyses
         ],
     )

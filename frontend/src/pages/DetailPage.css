@@ -1,0 +1,33 @@
+.detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 20px 48px;
+}
+
+.detail-page__nav {
+  display: flex;
+}
+
+.detail-page__back {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-text-muted);
+  font-size: var(--c-font-sm);
+  cursor: pointer;
+}
+
+.detail-page__back:hover {
+  color: var(--c-accent);
+}
+
+.detail-page__fallback {
+  margin: 0;
+  text-align: center;
+  font-size: var(--c-font-sm);
+}
+
+.detail-page__fallback a {
+  color: var(--c-accent);
+}
