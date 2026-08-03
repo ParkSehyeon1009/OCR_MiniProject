@@ -58,6 +58,12 @@ class ExtractionService:
 
             try:
                 result = extractor.extract(stored_path)
+
+                if not result.content.strip():
+                    raise BusinessError(
+                        ErrorCode.EXTRACTION_FAILED,
+                        detail="문서에서 추출할 수 있는 텍스트가 없습니다.",
+                    )
             except BusinessError:
                 raise
             except Exception as exc:

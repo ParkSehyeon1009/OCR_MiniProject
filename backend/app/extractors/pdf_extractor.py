@@ -64,7 +64,6 @@ class PdfExtractor(TextExtractor):
         elements: list[LayoutElement] = []
         has_text = False
         has_ocr = False
-        has_image_block = False
 
         for block in page_dict.get("blocks", []):
             block_type = block.get("type")
@@ -77,26 +76,14 @@ class PdfExtractor(TextExtractor):
                     has_text = True
 
             elif block_type == 1:
-                has_image_block = True
                 image_elements = self._extract_image_block(block)
 
                 if image_elements:
                     elements.extend(image_elements)
                     has_ocr = True
 
-        # 일부 스캔 PDF는 이미지 블록이 정상적으로 노출되지 않거나
-        # 벡터 그래픽 형태로 저장될 수 있다. 텍스트와 이미지 OCR 결과가
-        # 모두 없으면 페이지 전체를 렌더링해 마지막으로 OCR을 시도한다.
+        # # 텍스트와 이미지 OCR 결과가 모두 없으면 페이지 전체를 OCR한다.
         if not elements:
-            page_ocr_elements = self._extract_full_page_with_ocr(page)
-
-            if page_ocr_elements:
-                elements.extend(page_ocr_elements)
-                has_ocr = True
-
-        # 이미지 블록은 있었지만 Pillow가 해석하지 못했거나 OCR 결과가
-        # 전혀 없는 경우에도 페이지 전체 OCR을 한 번 시도한다.
-        elif has_image_block and not has_ocr and not has_text:
             page_ocr_elements = self._extract_full_page_with_ocr(page)
 
             if page_ocr_elements:
