@@ -1,0 +1,83 @@
+.main-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  text-align: left;
+}
+
+.main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.project-name {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.user-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.user-icon:hover {
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.main-body {
+  display: flex;
+  flex: 1;
+}
+
+.side-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 140px;
+  padding: 24px 16px;
+  border-right: 1px solid var(--border);
+}
+
+.menu-item {
+  padding: 22px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: center;
+  color: var(--text-h);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.menu-item.active,
+.menu-item:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.content-area {
+  flex: 1;
+  padding: 32px;
+}
+
+.content-area h2 {
+  margin: 0 0 12px;
+}
+
+.content-area p {
+  color: var(--text);
+  line-height: 1.6;
+}
