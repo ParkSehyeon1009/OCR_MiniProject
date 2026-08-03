@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, File, UploadFile
 from starlette import status
 
+from app.core.config import settings
 from app.dependencies import get_extraction_service
 from app.schemas.document import DocumentUploadResponse
 from app.services.extraction_service import ExtractionService
@@ -25,7 +26,13 @@ def upload_document(
             detail="파일명이 필요합니다.",
         )
     
-    content = file.file.read()
+    content = file.file.read(settings.max_file_size_bytes + 1)
+
+    if len(content) > settings.max_file_size_bytes:
+        raise BusinessError(
+            ErrorCode.FILE_TOO_LARGE,
+            detail=f"파일은 최대 {settings.MAX_FILE_SIZE_MB}MB까지 업로드할 수 있습니다.",
+        )
 
     if not content:
         raise BusinessError(

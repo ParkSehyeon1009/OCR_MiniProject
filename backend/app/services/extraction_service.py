@@ -36,14 +36,18 @@ class ExtractionService:
                 ErrorCode.INVALID_FILE_TYPE,
                 detail=f"file_type={extension}",
             )
-
+        # 라우터를 거치지 않고 서비스가 직접 호출되는 경우에도
+        # 최대 파일 크기를 반드시 검증한다.
         if len(content) > settings.max_file_size_bytes:
             raise BusinessError(
                 ErrorCode.FILE_TOO_LARGE,
-                detail=(
-                    f"size={len(content)}bytes, "
-                    f"max={settings.max_file_size_bytes}bytes"
-                ),
+                detail=f"파일은 최대 {settings.MAX_FILE_SIZE_MB}MB까지 업로드할 수 있습니다.",
+            )
+
+        if not content:
+            raise BusinessError(
+                ErrorCode.EXTRACTION_FAILED,
+                detail="빈 파일은 업로드할 수 없습니다.",
             )
 
         stored_path = self._save_file(extension, content)
@@ -71,9 +75,9 @@ class ExtractionService:
             with transactional(self._db):
                 document = self._document_repository.create(
                     Document(
-                        # 사용자가 알아볼 수 있는 원래 파일명은 DB에 저장한다.
+                        # 사용자에게 표시할 원래 파일명
                         filename=safe_filename,
-                        # 실제 저장 파일은 UUID 기반 경로를 사용한다.
+                        # UUID 기반 실제 저장 경로
                         stored_path=stored_path,
                         file_type=file_type,
                         file_size=len(content),
