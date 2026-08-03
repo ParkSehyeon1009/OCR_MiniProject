@@ -151,7 +151,7 @@ class DocumentService:
             "-" * 46,
             "생성: PDF Brief AI",
         ]
-        content = "".join(lines)
+        content = "\n".join(lines)
 
         # 확장자를 떼고 _요약.txt 를 붙인다. (보고서.pdf -> 보고서_요약.txt)
         base_name = document.filename.rsplit(".", 1)[0] if "." in document.filename else document.filename
