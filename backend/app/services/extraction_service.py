@@ -72,7 +72,7 @@ class ExtractionService:
             if result.page_count > settings.MAX_PAGES:
                 raise BusinessError(
                     ErrorCode.TOO_MANY_PAGES,
-                    detail=f"문서는 최대 {settings.MAX_PAGES}까지 업로드 가능합니다.",
+                    detail=f"문서는 최대 {settings.MAX_PAGES}페이지까지 업로드 가능합니다.",
                 )
 
             with transactional(self._db):
