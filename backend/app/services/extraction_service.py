@@ -28,17 +28,25 @@ class ExtractionService:
         self._extractor_registry = extractor_registry
 
     def upload_and_extract(self, filename: str, content: bytes) -> Document:
-        extension = Path(filename).suffix.lower()
+        safe_filename = self._sanitize_filename(filename)
+        extension = Path(safe_filename).suffix.lower()
+
         if extension not in ALLOWED_EXTENSIONS:
-            raise BusinessError(ErrorCode.INVALID_FILE_TYPE, detail=f"file_type={extension}")
+            raise BusinessError(
+                ErrorCode.INVALID_FILE_TYPE,
+                detail=f"file_type={extension}",
+            )
 
         if len(content) > settings.max_file_size_bytes:
             raise BusinessError(
                 ErrorCode.FILE_TOO_LARGE,
-                detail=f"size={len(content)}bytes, max={settings.max_file_size_bytes}bytes",
+                detail=(
+                    f"size={len(content)}bytes, "
+                    f"max={settings.max_file_size_bytes}bytes"
+                ),
             )
 
-        stored_path = self._save_file(filename, content)
+        stored_path = self._save_file(extension, content)
 
         try:
             file_type = extension.lstrip(".")
@@ -54,13 +62,18 @@ class ExtractionService:
             if result.page_count > settings.MAX_PAGES:
                 raise BusinessError(
                     ErrorCode.TOO_MANY_PAGES,
-                    detail=f"page_count={result.page_count}, max={settings.MAX_PAGES}",
+                    detail=(
+                        f"page_count={result.page_count}, "
+                        f"max={settings.MAX_PAGES}"
+                    ),
                 )
 
             with transactional(self._db):
                 document = self._document_repository.create(
                     Document(
-                        filename=filename,
+                        # 사용자가 알아볼 수 있는 원래 파일명은 DB에 저장한다.
+                        filename=safe_filename,
+                        # 실제 저장 파일은 UUID 기반 경로를 사용한다.
                         stored_path=stored_path,
                         file_type=file_type,
                         file_size=len(content),
@@ -76,16 +89,36 @@ class ExtractionService:
 
             return document
         except Exception:
-            # 검증/추출/DB 저장 중 어느 단계에서 실패하든, 이미 디스크에 쓴
-            # 원본 파일이 고아 파일로 남지 않도록 정리한다.
+            # 추출, 페이지 검증 또는 DB 저장 중 실패하면 이미 저장된
+            # 원본 파일을 삭제해 고아 파일이 남지 않게 한다.
             if os.path.exists(stored_path):
                 os.remove(stored_path)
             raise
 
-    def _save_file(self, filename: str, content: bytes) -> str:
+    @staticmethod
+    def _sanitize_filename(filename: str) -> str:
+        # Windows와 POSIX 형식의 경로 부분을 모두 제거한다.
+        normalized = filename.replace("\\", "/")
+        safe_filename = normalized.rsplit("/", maxsplit=1)[-1].strip()
+
+        if not safe_filename or safe_filename in {".", ".."}:
+            raise BusinessError(
+                ErrorCode.INVALID_FILE_TYPE,
+                detail="올바른 파일명이 필요합니다.",
+            )
+
+        return safe_filename
+
+    @staticmethod
+    def _save_file(extension: str, content: bytes) -> str:
         os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
-        unique_name = f"{uuid.uuid4().hex}_{filename}"
+
+        # 사용자 입력 파일명을 실제 저장 경로에 포함하지 않는다.
+        # 같은 이름의 파일이 여러 번 올라와도 UUID가 달라 충돌하지 않는다.
+        unique_name = f"{uuid.uuid4().hex}{extension}"
         stored_path = os.path.join(settings.UPLOAD_DIR, unique_name)
-        with open(stored_path, "wb") as f:
-            f.write(content)
+
+        with open(stored_path, "wb") as file:
+            file.write(content)
+
         return stored_path
