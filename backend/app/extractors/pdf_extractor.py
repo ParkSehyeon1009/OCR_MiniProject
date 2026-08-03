@@ -4,6 +4,9 @@ from typing import Any
 import fitz
 from PIL import Image, UnidentifiedImageError
 
+from app.core.config import settings
+from app.core.error_codes import ErrorCode
+from app.core.exceptions import BusinessError
 from app.extractors.layout import LayoutElement
 from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.protocol import ExtractResult, TextExtractor
@@ -22,6 +25,12 @@ class PdfExtractor(TextExtractor):
 
         with fitz.open(file_path) as document:
             page_count = len(document)
+
+            if page_count > settings.MAX_PAGES:
+                raise BusinessError(
+                    ErrorCode.TOO_MANY_PAGES,
+                    detail=f"문서는 최대 {settings.MAX_PAGES}까지 업로드 가능합니다.",
+                )
 
             for page in document:
                 elements, page_has_text, page_has_ocr = self._extract_page(page)
