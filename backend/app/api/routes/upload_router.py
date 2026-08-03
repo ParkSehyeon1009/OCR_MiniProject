@@ -37,7 +37,7 @@ def upload_document(
     if not content:
         raise BusinessError(
             ErrorCode.EXTRACTION_FAILED,
-            deatil="빈 파일은 업로드할 수 없습니다.",
+            detail="빈 파일은 업로드할 수 없습니다.",
         )
 
     document = service.upload_and_extract(file.filename, content)
