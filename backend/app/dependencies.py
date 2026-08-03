@@ -37,6 +37,8 @@ from app.repositories.analysis_repository import AnalysisRepository
 from app.repositories.document_repository import DocumentRepository
 from app.services.analysis_service import AnalysisService
 from app.services.extraction_service import ExtractionService
+from app.services.document_service import DocumentService
+
 
 
 @lru_cache
@@ -108,4 +110,15 @@ def get_extraction_service(
         db=db,
         document_repository=document_repository,
         extractor_registry=extractor_registry,
+    )
+
+def get_document_service(
+    db: Session = Depends(get_db),
+    document_repository: DocumentRepository = Depends(get_document_repository),
+    analysis_repository: AnalysisRepository = Depends(get_analysis_repository),
+) -> DocumentService:
+    return DocumentService(
+        db=db,
+        document_repository=document_repository,
+        analysis_repository=analysis_repository,
     )

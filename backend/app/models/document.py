@@ -75,3 +75,12 @@ class Analysis(Base):
     created_at = Column(DateTime, nullable=False, server_default=func.now())
 
     document = relationship("Document", back_populates="analyses")
+    
+    document = relationship("Document", back_populates="analyses")
+
+    # AnalysisResponse 스키마의 필드명은 result 인데 컬럼명은 result_json 이므로,
+    # ORM -> 스키마 변환(model_validate)에서 찾을 수 있도록 별칭을 제공한다.
+    @property
+    def result(self) -> dict:
+        return self.result_json
+
