@@ -16,7 +16,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DocumentUploadResponse(BaseModel):
@@ -43,7 +43,7 @@ class AnalysisResponse(BaseModel):
 
     id: int
     analyzer_type: str
-    result: dict[str, Any]
+    result: dict[str, Any] = Field(validation_alias="result_json")
     provider: str
     model_name: str
     tokens_in: int | None = None
