@@ -30,6 +30,7 @@ class ExtractMethod(str, Enum):
     OCR = "OCR"
     DOCX = "DOCX"
     HWPX = "HWPX"
+    HYBRID = "HYBRID"
 
 
 class AnalyzerType(str, Enum):
