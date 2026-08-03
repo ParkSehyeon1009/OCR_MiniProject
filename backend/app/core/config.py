@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str
     MAX_FILE_SIZE_MB: int
     MAX_PAGES: int
+    MAX_EXTRACTED_CHARS: int = 45_000
     OCR_CHAR_THRESHOLD: int
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="UTF-8")

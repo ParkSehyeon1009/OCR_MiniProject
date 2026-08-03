@@ -21,6 +21,7 @@ class ErrorCode(Enum):
     INVALID_FILE_TYPE = ("INVALID_FILE_TYPE", "지원하지 않는 파일 형식입니다.", 400)
     FILE_TOO_LARGE = ("FILE_TOO_LARGE", "파일 크기가 허용 범위를 초과했습니다.", 413)
     TOO_MANY_PAGES = ("TOO_MANY_PAGES", "페이지 수가 허용 범위를 초과했습니다.", 413)
+    CONTENT_TOO_LARGE = ("CONTENT_TOO_LARGE", "추출된 문서 내용이 허용 범위를 초과했습니다.", 413)
     EXTRACTION_FAILED = ("EXTRACTION_FAILED", "문서에서 텍스트를 추출할 수 없습니다.", 422)
     DOCUMENT_NOT_FOUND = ("DOCUMENT_NOT_FOUND", "문서를 찾을 수 없습니다.", 404)
     NOT_EXTRACTED_YET = ("NOT_EXTRACTED_YET", "텍스트 추출이 완료되지 않았습니다.", 409)

@@ -69,10 +69,22 @@ class ExtractionService:
             except Exception as exc:
                 raise BusinessError(ErrorCode.EXTRACTION_FAILED) from exc
 
-            if result.page_count > settings.MAX_PAGES:
+            if file_type == "pdf" and result.page_count > settings.MAX_PAGES:
                 raise BusinessError(
                     ErrorCode.TOO_MANY_PAGES,
-                    detail=f"문서는 최대 {settings.MAX_PAGES}페이지까지 업로드 가능합니다.",
+                    detail=f"PDF는 최대 {settings.MAX_PAGES}페이지까지 업로드할 수 있습니다.",
+                )
+
+            if (
+                file_type in {"docx", "hwpx"}
+                and result.char_count > settings.MAX_EXTRACTED_CHARS
+            ):
+                raise BusinessError(
+                    ErrorCode.CONTENT_TOO_LARGE,
+                    detail=(
+                        "DOCX와 HWPX는 추출된 텍스트가 "
+                        f"최대 {settings.MAX_EXTRACTED_CHARS:,}자까지 허용됩니다."
+                    ),
                 )
 
             with transactional(self._db):

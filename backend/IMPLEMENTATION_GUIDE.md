@@ -48,9 +48,11 @@
   환경에서는 서버 자체가 뜨지 않습니다.)
 - 업로드 라우터는 **동기(`def`)**로 작성하세요. `async def`로 만들면 안 됩니다 — 텍스트 추출은
   CPU/파일 I/O 작업이라 FastAPI의 threadpool에서 도는 동기 라우터가 더 적합합니다.
-- 검증 규칙: 최대 10MB(`settings.MAX_FILE_SIZE_MB`), 최대 30페이지(`settings.MAX_PAGES`),
-  허용 확장자 `.pdf .docx .hwpx .png .jpg .jpeg`. 실패 시 `BusinessError(ErrorCode.FILE_TOO_LARGE)`,
-  `BusinessError(ErrorCode.TOO_MANY_PAGES)`, `BusinessError(ErrorCode.INVALID_FILE_TYPE)`을 사용하세요.
+- 검증 규칙: 최대 10MB(`settings.MAX_FILE_SIZE_MB`), PDF 최대 30페이지(`settings.MAX_PAGES`),
+  DOCX/HWPX 최대 추출 텍스트 45,000자(`settings.MAX_EXTRACTED_CHARS`), 허용 확장자
+  `.pdf .docx .hwpx .png .jpg .jpeg`. 실패 시 `BusinessError(ErrorCode.FILE_TOO_LARGE)`,
+  `BusinessError(ErrorCode.TOO_MANY_PAGES)`, `BusinessError(ErrorCode.CONTENT_TOO_LARGE)`,
+  `BusinessError(ErrorCode.INVALID_FILE_TYPE)`을 사용하세요.
 - 추출 실패 시 `BusinessError(ErrorCode.EXTRACTION_FAILED)`.
 - 텍스트 레이어가 없는 PDF/이미지는 `settings.OCR_CHAR_THRESHOLD`보다 추출된 글자 수가 적으면
   OCR로 폴백하는 방식으로 설계하는 것을 권장합니다.
