@@ -34,7 +34,7 @@ class ExtractionService:
         if extension not in ALLOWED_EXTENSIONS:
             raise BusinessError(
                 ErrorCode.INVALID_FILE_TYPE,
-                detail=f"file_type={extension}",
+                detail="PDF, DOCX, HWPX, PNG, JPG, JPEG 파일만 업로드할 수 있습니다.",
             )
         # 라우터를 거치지 않고 서비스가 직접 호출되는 경우에도
         # 최대 파일 크기를 반드시 검증한다.
