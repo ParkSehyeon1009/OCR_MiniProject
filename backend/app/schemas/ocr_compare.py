@@ -14,3 +14,4 @@ class OcrEngineResult(BaseModel):
 class OcrCompareResponse(BaseModel):
     paddle: OcrEngineResult
     tesseract: OcrEngineResult
+    easyocr: OcrEngineResult
