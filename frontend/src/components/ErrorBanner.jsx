@@ -11,12 +11,20 @@ import './ErrorBanner.css'
 
 // 서버 message 를 그대로 보여주되, 사용자가 다음에 무엇을 해야 하는지
 // 알기 어려운 코드에만 보조 안내를 덧붙인다.
+// 키는 backend/app/core/error_codes.py 의 ErrorCode 와 정확히 일치해야 한다.
 const HINTS = {
-  NOT_EXTRACTED_YET: '문서 상세 화면에서 분석을 먼저 실행해 주세요.',
+  INVALID_FILE_TYPE: 'PDF, DOCX, HWPX, PNG, JPG 파일만 업로드할 수 있습니다.',
+  FILE_TOO_LARGE: '파일 크기를 10MB 이하로 줄여 다시 시도해 주세요.',
+  TOO_MANY_PAGES: '30페이지 이하로 나누어 업로드해 주세요.',
+  CONTENT_TOO_LARGE: '문서 분량이 허용 범위를 넘었습니다. 일부만 잘라 업로드해 주세요.',
+  EXTRACTION_FAILED: '문서에서 글자를 찾지 못했습니다. 스캔 품질을 확인해 주세요.',
   DOCUMENT_NOT_FOUND: '삭제되었거나 잘못된 주소일 수 있습니다. 목록으로 돌아가 주세요.',
+  NOT_EXTRACTED_YET: '문서 상세 화면에서 분석을 먼저 실행해 주세요.',
+  ANALYZER_NOT_FOUND: '요약 또는 분류 중 하나 이상을 선택해 주세요.',
+  AI_PROVIDER_ERROR: 'AI 서비스 응답에 실패했습니다. 잠시 후 다시 시도해 주세요.',
   AI_TIMEOUT: '문서 분량이 많아 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
-  AI_CALL_FAILED: 'AI 서비스 응답에 실패했습니다. 잠시 후 다시 시도해 주세요.',
 }
+
 
 export default function ErrorBanner({ error, onRetry }) {
   if (!error) return null

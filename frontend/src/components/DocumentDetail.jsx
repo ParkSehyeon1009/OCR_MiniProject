@@ -97,23 +97,23 @@ export default function DocumentDetail({ document, onDownload, onAnalyze, analyz
       {/* ------------------------------------------------------ 메타 정보 */}
       <dl className="doc-detail__meta">
         <div>
-          <dt>문서 유형</dt>
+          <dt>유형</dt>
           <dd>{document.document_type || '-'}</dd>
         </div>
         <div>
-          <dt>파일 형식</dt>
+          <dt>형식</dt>
           <dd>{document.file_type || '-'}</dd>
         </div>
         <div>
-          <dt>페이지 수</dt>
+          <dt>페이지</dt>
           <dd>{document.page_count ? `${formatNumber(document.page_count)}p` : '-'}</dd>
         </div>
         <div>
-          <dt>추출 글자 수</dt>
+          <dt>글자 수</dt>
           <dd>{document.char_count ? `${formatNumber(document.char_count)}자` : '-'}</dd>
         </div>
         <div>
-          <dt>업로드 일시</dt>
+          <dt>업로드</dt>
           <dd>{formatDateTime(document.created_at)}</dd>
         </div>
       </dl>
