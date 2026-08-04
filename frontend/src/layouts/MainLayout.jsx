@@ -1,13 +1,3 @@
-// =============================================================================
-// 이 파일의 책임: 모든 화면이 공유하는 상단 헤더와 네비게이션을 그리고,
-//   그 아래에 현재 라우트의 페이지를 끼워 넣는다(Outlet).
-// 다른 파일과의 관계: App.jsx 가 라우트 트리의 최상위 element 로 사용한다.
-//   자식 페이지는 MainPage / ListPage / DetailPage / TestPage 다.
-//   주의: 여기에 .c-scope 를 붙이지 않는다. 붙이면 기존 MainPage·TestPage 의
-//   글자 크기와 정렬까지 바뀌므로, .c-scope 는 각 페이지가 스스로 적용한다.
-// Spring 비교: Thymeleaf 의 레이아웃 템플릿(공통 header + 본문 fragment 삽입)
-//   과 같은 역할. Outlet 이 th:insert 로 끼워지는 자리에 해당한다.
-// =============================================================================
 
 import { NavLink, Outlet } from 'react-router-dom'
 import './MainLayout.css'
@@ -33,16 +23,32 @@ export default function MainLayout() {
           <NavLink to="/documents" className={navClass}>
             문서 목록
           </NavLink>
+<<<<<<< HEAD
           <NavLink to="/upload" className={navClass}>
             업로드
           </NavLink>
           <NavLink to="/ocr-compare" className={navClass}>
             OCR 비교
           </NavLink>
+=======
+>>>>>>> f4a8400b123a6248a64ca22bf912bb424d7d8b74
         </nav>
 
-        {/* 로그인 기능을 넣게 되면 이 자리에 사용자 메뉴가 들어간다.
-            <div className="app-header__user"> ... </div> */}
+        {/* --- 인증 삽입 지점 ---
+            로그인 도입 시: 비로그인은 <Link to="/login">, 로그인 상태는
+            사용자명 + 드롭다운(로그아웃)으로 교체한다. 헤더 밖 코드는 손대지 않는다. */}
+        <button
+          type="button"
+          className="app-user"
+          title="로그인"
+          aria-label="로그인"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
+               stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" />
+          </svg>
+        </button>
       </header>
 
       <main className="app-main">
