@@ -7,3 +7,5 @@ class LayoutElement:
     content: str
     source: str      # "text" | "ocr"
     confidence: float | None = None
+    x2: float | None = None
+    y2: float | None = None
