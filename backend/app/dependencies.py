@@ -27,6 +27,7 @@ from app.analyzers.summary_analyzer import SummaryAnalyzer
 from app.core.config import settings
 from app.db.session import get_db
 from app.extractors.docx_extractor import DocxExtractor
+from app.extractors.easyocr_extractor import EasyOcrExtractor
 from app.extractors.fake_extractor import FakeExtractor
 from app.extractors.hwpx_extractor import HwpxExtractor
 from app.extractors.image_extractor import ImageExtractor
@@ -93,11 +94,17 @@ def get_tesseract_extractor() -> TesseractExtractor:
     return TesseractExtractor()
 
 
+@lru_cache
+def get_easyocr_extractor() -> EasyOcrExtractor:
+    return EasyOcrExtractor()
+
+
 def get_ocr_compare_service(
     paddle_extractor: OcrExtractor = Depends(get_ocr_extractor),
     tesseract_extractor: TesseractExtractor = Depends(get_tesseract_extractor),
+    easyocr_extractor: EasyOcrExtractor = Depends(get_easyocr_extractor),
 ) -> OcrCompareService:
-    return OcrCompareService(paddle_extractor, tesseract_extractor)
+    return OcrCompareService(paddle_extractor, tesseract_extractor, easyocr_extractor)
 
 
 def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository:

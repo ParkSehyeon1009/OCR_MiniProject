@@ -3,6 +3,7 @@ from dataclasses import dataclass
 
 from PIL import Image
 
+from app.extractors.easyocr_extractor import EasyOcrExtractor
 from app.extractors.layout import LayoutElement
 from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.tesseract_extractor import TesseractExtractor
@@ -24,14 +25,18 @@ class OcrCompareService:
         self,
         paddle_extractor: OcrExtractor,
         tesseract_extractor: TesseractExtractor,
+        easyocr_extractor: EasyOcrExtractor,
     ) -> None:
         self._paddle_extractor = paddle_extractor
         self._tesseract_extractor = tesseract_extractor
+        self._easyocr_extractor = easyocr_extractor
 
-    def compare(self, image: Image.Image) -> tuple[OcrRunResult, OcrRunResult]:
-        paddle_result = self._run("paddle", self._paddle_extractor, image)
-        tesseract_result = self._run("tesseract", self._tesseract_extractor, image)
-        return paddle_result, tesseract_result
+    def compare(self, image: Image.Image) -> dict[str, OcrRunResult]:
+        return {
+            "paddle": self._run("paddle", self._paddle_extractor, image),
+            "tesseract": self._run("tesseract", self._tesseract_extractor, image),
+            "easyocr": self._run("easyocr", self._easyocr_extractor, image),
+        }
 
     @staticmethod
     def _run(engine: str, extractor, image: Image.Image) -> OcrRunResult:
