@@ -7,6 +7,10 @@ from PIL import Image
 from app.extractors.layout import LayoutElement
 from app.extractors.table_detector import TableCell, TableDetector
 
+from app.extractors.preprocessing import PRESET_LIGHT, preprocess_for_layout
+
+
+
 
 class OcrExtractor:
     # 두 OCR 박스가 같은 줄인지 판단할 때 필요한 최소 세로 겹침 비율.
@@ -17,8 +21,8 @@ class OcrExtractor:
     def __init__(self) -> None:
         self._ocr = PaddleOCR(
             lang="korean",
-            use_doc_orientation_classify=True,
-            use_doc_unwarping=True,
+            use_doc_orientation_classify=True, #기울기보정 (기본값)
+            use_doc_unwarping=True, #원근값보정 (기본값)
             use_textline_orientation=True,
         )
 
@@ -32,7 +36,12 @@ class OcrExtractor:
         offset_x: float = 0,
         offset_y: float = 0,
     ) -> list[LayoutElement]:
-        rgb_image = image.convert("RGB")
+        # OCR 입력 이미지에만 전처리를 적용한다. 반환 좌표는 아래에서
+        # 원본 좌표계로 되돌리므로 호출자는 영향을 받지 않는다.
+        prepared = preprocess_for_layout(image.convert("RGB"), PRESET_LIGHT)
+        rgb_image = prepared.image
+        inverse_scale = 1.0 / prepared.scale if prepared.scale else 1.0
+
 
         # 동시에 여러 요청이 들어와도 OCR은 한 번에 하나씩 실행한다.
         with self._inference_lock:
@@ -78,6 +87,13 @@ class OcrExtractor:
                 x2 = float(box_array[:, 0].max())
                 y2 = float(box_array[:, 1].max())
 
+            # 전처리에서 확대됐다면 원본 이미지 좌표계로 되돌린다.
+            # (호출자 pdf_extractor 는 원본 크기를 기준으로 배율을 계산한다)
+            x *= inverse_scale
+            y *= inverse_scale
+            x2 *= inverse_scale
+            y2 *= inverse_scale
+            
             elements.append(
                 LayoutElement(
                     x=x + offset_x,
