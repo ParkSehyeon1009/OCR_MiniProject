@@ -14,7 +14,7 @@
 }
 
 .project-name {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--text-h);
 }
@@ -71,6 +71,10 @@
 .content-area {
   flex: 1;
   padding: 32px;
+}
+
+.content-area p + p {
+  margin-top: 12px;
 }
 
 .content-area h2 {
