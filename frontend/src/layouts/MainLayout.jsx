@@ -23,15 +23,9 @@ export default function MainLayout() {
           <NavLink to="/documents" className={navClass}>
             문서 목록
           </NavLink>
-<<<<<<< HEAD
-          <NavLink to="/upload" className={navClass}>
-            업로드
-          </NavLink>
           <NavLink to="/ocr-compare" className={navClass}>
             OCR 비교
           </NavLink>
-=======
->>>>>>> f4a8400b123a6248a64ca22bf912bb424d7d8b74
         </nav>
 
         {/* --- 인증 삽입 지점 ---

@@ -8,6 +8,11 @@ from app.extractors.layout import LayoutElement
 
 
 class OcrExtractor:
+    # 두 OCR 박스가 같은 줄인지 판단할 때 필요한 최소 세로 겹침 비율.
+    _LINE_OVERLAP_RATIO = 0.45
+    # 한 글자씩 분리된 박스 사이의 간격이 글자 높이의 이 비율 이하면 붙인다.
+    _CHAR_JOIN_GAP_RATIO = 0.60
+
     def __init__(self) -> None:
         self._ocr = PaddleOCR(
             lang="korean",
@@ -62,10 +67,14 @@ class OcrExtractor:
                 # rec_boxes 형식: [x1, y1, x2, y2]
                 x = float(box_array[0])
                 y = float(box_array[1])
+                x2 = float(box_array[2])
+                y2 = float(box_array[3])
             else:
                 # rec_polys 형식: [[x1, y1], [x2, y2], ...]
                 x = float(box_array[:, 0].min())
                 y = float(box_array[:, 1].min())
+                x2 = float(box_array[:, 0].max())
+                y2 = float(box_array[:, 1].max())
 
             elements.append(
                 LayoutElement(
@@ -74,7 +83,123 @@ class OcrExtractor:
                     content=normalized_text,
                     source="ocr",
                     confidence=float(score),
+                    x2=x2 + offset_x,
+                    y2=y2 + offset_y,
                 )
             )
 
-        return elements
+        return self._merge_same_line_elements(elements)
+
+    @classmethod
+    def _merge_same_line_elements(
+        cls,
+        elements: list[LayoutElement],
+    ) -> list[LayoutElement]:
+        """세로 위치가 겹치는 OCR 박스를 한 줄로 병합한다."""
+        if len(elements) < 2:
+            return elements
+
+        lines: list[list[LayoutElement]] = []
+
+        for element in sorted(elements, key=cls._vertical_sort_key):
+            matching_line = next(
+                (line for line in lines if cls._belongs_to_line(element, line)),
+                None,
+            )
+
+            if matching_line is None:
+                lines.append([element])
+            else:
+                matching_line.append(element)
+
+        merged = [cls._merge_line(line) for line in lines]
+        merged.sort(key=lambda element: (element.y, element.x))
+        return merged
+
+    @staticmethod
+    def _vertical_sort_key(element: LayoutElement) -> tuple[float, float]:
+        y2 = element.y2 if element.y2 is not None else element.y
+        return ((element.y + y2) / 2, element.x)
+
+    @classmethod
+    def _belongs_to_line(
+        cls,
+        element: LayoutElement,
+        line: list[LayoutElement],
+    ) -> bool:
+        element_y2 = element.y2 if element.y2 is not None else element.y
+        line_y1 = min(item.y for item in line)
+        line_y2 = max(item.y2 if item.y2 is not None else item.y for item in line)
+
+        element_height = max(element_y2 - element.y, 1.0)
+        line_height = max(line_y2 - line_y1, 1.0)
+        overlap = max(0.0, min(element_y2, line_y2) - max(element.y, line_y1))
+        overlap_ratio = overlap / min(element_height, line_height)
+
+        return overlap_ratio >= cls._LINE_OVERLAP_RATIO
+
+    @classmethod
+    def _merge_line(cls, line: list[LayoutElement]) -> LayoutElement:
+        ordered = sorted(line, key=lambda element: element.x)
+        parts = [ordered[0].content]
+
+        for previous, current in zip(ordered, ordered[1:]):
+            parts.append(cls._separator_between(previous, current))
+            parts.append(current.content)
+
+        confidences = [
+            element.confidence
+            for element in ordered
+            if element.confidence is not None
+        ]
+
+        return LayoutElement(
+            x=min(element.x for element in ordered),
+            y=min(element.y for element in ordered),
+            x2=max(
+                element.x2 if element.x2 is not None else element.x
+                for element in ordered
+            ),
+            y2=max(
+                element.y2 if element.y2 is not None else element.y
+                for element in ordered
+            ),
+            content="".join(parts),
+            source="ocr",
+            confidence=(
+                sum(confidences) / len(confidences)
+                if confidences
+                else None
+            ),
+        )
+
+    @classmethod
+    def _separator_between(
+        cls,
+        previous: LayoutElement,
+        current: LayoutElement,
+    ) -> str:
+        previous_x2 = previous.x2 if previous.x2 is not None else previous.x
+        gap = current.x - previous_x2
+
+        previous_y2 = previous.y2 if previous.y2 is not None else previous.y
+        current_y2 = current.y2 if current.y2 is not None else current.y
+        average_height = (
+            max(previous_y2 - previous.y, 1.0)
+            + max(current_y2 - current.y, 1.0)
+        ) / 2
+
+        # PaddleOCR가 한글 한 단어를 한 글자 박스로 잘게 나눈 경우에는
+        # 박스 사이가 가까울 때 공백 없이 원래 단어로 복원한다.
+        if (
+            len(previous.content) == 1
+            and len(current.content) == 1
+            and gap <= average_height * cls._CHAR_JOIN_GAP_RATIO
+        ):
+            return ""
+
+        # 겹치거나 거의 붙은 박스는 하나의 문자열 조각으로 본다.
+        if gap <= average_height * 0.15:
+            return ""
+
+        return " "
