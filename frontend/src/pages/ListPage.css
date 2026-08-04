@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 24px 20px 48px;
+  padding: 24px var(--c-page-x) 48px;
 }
 
 /* ------------------------------------------------------------------ 헤더 */
@@ -198,4 +198,120 @@
   color: var(--c-text-muted);
   min-width: 64px;
   text-align: center;
+}
+
+/* ------------------------------------------------- 목록 + 상세 2단 구성 */
+.list-page__split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* 패널이 열리면 표를 좁히고 우측에 상세를 둔다 */
+.list-page__split--open {
+  grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
+}
+
+.list-page__main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* 패널에 요약 전문이 나오므로 표에서는 요약 열만 감춘다 (상태는 유지) */
+.list-page__split--open .col-sum {
+  display: none;
+}
+
+.list-page__split--open .list-table .col-name { width: 42%; }
+.list-page__split--open .list-table .col-cat { width: 19%; }
+.list-page__split--open .list-table .col-status { width: 19%; }
+.list-page__split--open .list-table .col-date { width: 20%; }
+
+
+/* 선택된 행 강조 */
+.list-table__row--selected {
+  background: var(--c-accent-bg) !important;
+  box-shadow: inset 3px 0 0 var(--c-accent);
+}
+
+/* 파일명을 button 으로 바꿨으므로 링크처럼 보이게 되돌린다 */
+.list-table__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: var(--c-text-strong);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.list-table__link:hover {
+  color: var(--c-accent);
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------------ 상세 패널 */
+/* 내부 스크롤을 두지 않는다. sticky + 높이 제한을 함께 쓰면 패널이 뷰포트보다
+ * 길어질 때 아래쪽을 볼 수 없고, 페이지 스크롤과 겹쳐 스크롤바가 2개 생긴다.
+ * 문서 흐름에 그대로 두어 페이지 스크롤 하나만 쓰게 한다. */
+.list-panel {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--c-border);
+  border-radius: var(--c-radius);
+  background: var(--c-bg);
+  box-shadow: var(--c-shadow);
+}
+
+/* 패널은 폭이 좁으므로 원문 펼침 높이를 전체화면보다 낮춘다 */
+.list-panel .doc-detail__text--expanded {
+  max-height: 300px;
+}
+
+.list-panel__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.list-panel__expand {
+  font-size: var(--c-font-sm);
+  color: var(--c-accent);
+}
+
+.list-panel__close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: var(--c-radius-sm);
+  background: var(--c-bg);
+  color: var(--c-text-muted);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.list-panel__close:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text-strong);
+}
+
+/* 화면이 좁으면 2단을 포기하고 위아래로 쌓는다 */
+@media (max-width: 1100px) {
+  .list-page__split--open {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .list-page__split--open .col-sum {
+    display: table-cell;
+  }
 }

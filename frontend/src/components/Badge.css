@@ -51,7 +51,7 @@
   border-radius: var(--c-radius-sm);
 }
 .badge-cat--contract { color: #6b21a8; background: #f5eaff; border-color: #e2cbf7; }
-.badge-cat--report   { color: #175cd3; background: #eaf1fd; border-color: #c9dcf8; }
+.badge-cat--report   { color: #be185d; background: #fdf2f7; border-color: #f6d0e2; }
 .badge-cat--minutes  { color: #0e7490; background: #e5f6fa; border-color: #c2e6ef; }
 .badge-cat--notice   { color: #9a5b00; background: #fdf2e2; border-color: #f2ddba; }
 .badge-cat--manual   { color: #17803d; background: #e8f6ed; border-color: #c6e6d2; }

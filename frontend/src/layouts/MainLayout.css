@@ -10,7 +10,7 @@
   align-items: center;
   gap: 24px;
   flex-wrap: wrap;
-  padding: 14px 20px;
+  padding: 14px var(--c-page-x);
   border-bottom: 1px solid var(--c-border);
   background: var(--c-bg);
 }
@@ -54,4 +54,26 @@
 .app-main {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/* 헤더 우측 끝으로 밀어낸다 (인증 삽입 지점) */
+.app-user {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--c-border-strong);
+  border-radius: 50%;
+  background: var(--c-bg);
+  color: var(--c-text-muted);
+  cursor: pointer;
+}
+
+.app-user:hover {
+  background: var(--c-bg-hover);
+  color: var(--c-text-strong);
 }

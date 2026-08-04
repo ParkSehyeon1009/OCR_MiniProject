@@ -21,9 +21,10 @@
   --c-text-muted: #8b8593;
 
   /* --- 강조색 (index.css 의 --accent 와 같은 색, 다크 전환 없음) --- */
-  --c-accent: #aa3bff;
-  --c-accent-bg: rgba(170, 59, 255, 0.1);
-  --c-accent-border: rgba(170, 59, 255, 0.45);
+  --c-accent: #1e40af;
+  --c-accent-bg: rgba(30, 64, 175, 0.1);
+  --c-accent-border: rgba(30, 64, 175, 0.45);
+
 
   /* --- 상태색 --- */
   --c-success: #17803d;
@@ -44,6 +45,10 @@
   --c-font-sm: 13px;
   --c-font-base: 15px;
   --c-font-lg: 20px;
+
+    /* 헤더와 모든 페이지가 같은 좌우 여백을 쓰도록 한 곳에서 정한다 */
+  --c-page-x: 28px;
+
 
   --c-mono: ui-monospace, Consolas, monospace;
 }
@@ -66,4 +71,13 @@
   color-scheme: light;
   font-family: inherit;
   font-size: inherit;
+}
+
+/* 앱 컨테이너 폭.
+ * index.css 의 #root 는 1126px 고정이라 목록+상세 2단 구성에 너무 좁다.
+ * index.css(공유 파일)를 수정하지 않고, 나중에 로드되는 이 파일에서 같은
+ * 선택자로 덮어쓴다. main.jsx 의 import 순서(index.css → tokens.css)에 의존한다. */
+#root {
+  width: 100%;
+  max-width: 1440px;
 }
