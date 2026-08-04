@@ -33,11 +33,13 @@ from app.extractors.image_extractor import ImageExtractor
 from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.pdf_extractor import PdfExtractor
 from app.extractors.registry import ExtractorRegistry
+from app.extractors.tesseract_extractor import TesseractExtractor
 from app.repositories.analysis_repository import AnalysisRepository
 from app.repositories.document_repository import DocumentRepository
 from app.services.analysis_service import AnalysisService
 from app.services.extraction_service import ExtractionService
 from app.services.document_service import DocumentService
+from app.services.ocr_compare_service import OcrCompareService
 
 
 
@@ -52,10 +54,17 @@ def get_ai_client() -> AIClientProtocol:
 
 
 @lru_cache
+def get_ocr_extractor() -> OcrExtractor:
+    # PaddleOCR은 모델 로딩 비용이 커서, 업로드 추출 파이프라인과 OCR 비교
+    # 화면(ocr_compare_router)이 인스턴스를 공유하도록 별도 provider로 뺐다.
+    return OcrExtractor()
+
+
+@lru_cache
 def get_extractor_registry() -> ExtractorRegistry:
     registry = ExtractorRegistry()
 
-    ocr = OcrExtractor()
+    ocr = get_ocr_extractor()
     image_extractor = ImageExtractor(ocr)
 
     registry.register("pdf", PdfExtractor(ocr))
@@ -77,6 +86,18 @@ def get_analyzer_registry() -> dict[str, Analyzer]:
         "category": CategoryAnalyzer(ai_client),
     }
     return registry
+
+
+@lru_cache
+def get_tesseract_extractor() -> TesseractExtractor:
+    return TesseractExtractor()
+
+
+def get_ocr_compare_service(
+    paddle_extractor: OcrExtractor = Depends(get_ocr_extractor),
+    tesseract_extractor: TesseractExtractor = Depends(get_tesseract_extractor),
+) -> OcrCompareService:
+    return OcrCompareService(paddle_extractor, tesseract_extractor)
 
 
 def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository:

@@ -23,6 +23,9 @@ export default function MainLayout() {
           <NavLink to="/documents" className={navClass}>
             문서 목록
           </NavLink>
+          <NavLink to="/ocr-compare" className={navClass}>
+            OCR 비교
+          </NavLink>
         </nav>
 
         {/* --- 인증 삽입 지점 ---

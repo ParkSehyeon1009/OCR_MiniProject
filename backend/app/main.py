@@ -92,6 +92,8 @@ def health() -> dict[str, str]:
 from app.api.routes import upload_router      # 담당자 A: POST /api/documents
 from app.api.routes import analysis_router    # 담당자 B: POST /api/documents/{id}/analyze
 from app.api.routes import document_router    # 담당자 C: GET /api/documents, /{id}, /download, DELETE
+from app.api.routes import ocr_compare_router # OCR 비교 테스트: POST /api/ocr-compare
 app.include_router(upload_router.router)
 app.include_router(analysis_router.router)
 app.include_router(document_router.router)
+app.include_router(ocr_compare_router.router)

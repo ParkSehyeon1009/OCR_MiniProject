@@ -4,6 +4,7 @@ import MainPage from './pages/MainPage'
 import ListPage from './pages/ListPage'
 import DetailPage from './pages/DetailPage'
 import TestPage from './pages/TestPage'
+import OcrComparePage from './pages/OcrComparePage'
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
           <Route path="/documents" element={<ListPage />} />
           <Route path="/documents/:id" element={<DetailPage />} />
           <Route path="/upload" element={<TestPage />} />
+          <Route path="/ocr-compare" element={<OcrComparePage />} />
         </Route>
       </Routes>
     </BrowserRouter>
