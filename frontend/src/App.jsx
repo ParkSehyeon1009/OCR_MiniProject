@@ -1,23 +1,22 @@
-import { useState } from 'react'
-import './App.css'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import MainLayout from './layouts/MainLayout'
 import MainPage from './pages/MainPage'
+import ListPage from './pages/ListPage'
+import DetailPage from './pages/DetailPage'
 import TestPage from './pages/TestPage'
 
 function App() {
-  const [view, setView] = useState('main')
-
   return (
-    <>
-      <div className="view-switch">
-        <button type="button" onClick={() => setView('main')} disabled={view === 'main'}>
-          메인 페이지
-        </button>
-        <button type="button" onClick={() => setView('test')} disabled={view === 'test'}>
-          API 테스트
-        </button>
-      </div>
-      {view === 'main' ? <MainPage /> : <TestPage />}
-    </>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<MainLayout />}>
+          <Route path="/" element={<MainPage />} />
+          <Route path="/documents" element={<ListPage />} />
+          <Route path="/documents/:id" element={<DetailPage />} />
+          <Route path="/upload" element={<TestPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   )
 }
 
