@@ -36,6 +36,9 @@ export default function MainLayout() {
           <NavLink to="/upload" className={navClass}>
             업로드
           </NavLink>
+          <NavLink to="/ocr-compare" className={navClass}>
+            OCR 비교
+          </NavLink>
         </nav>
 
         {/* 로그인 기능을 넣게 되면 이 자리에 사용자 메뉴가 들어간다.
