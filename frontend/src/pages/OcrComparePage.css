@@ -37,6 +37,13 @@
   background: var(--c-bg-subtle);
 }
 
+.ocr-compare__filename {
+  margin: 0;
+  font-family: var(--c-mono);
+  font-size: var(--c-font-sm);
+  color: var(--c-text-muted);
+}
+
 .ocr-compare__preview {
   max-width: 320px;
   max-height: 240px;

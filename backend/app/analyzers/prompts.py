@@ -37,7 +37,7 @@ CATEGORY_SYSTEM_PROMPT = """문서를 정해진 카테고리 중 하나로 분�
 3. 아래 JSON 형식으로 응답하고, 다른 텍스트는 추가하지 않습니다.
 
 {{
-    "category" : "선택한 카테고리".
+    "category" : "선택한 카테고리",
     "reason" : "이 카테고리를 선택한 1문장 이유"
 }}
 """.format(categories=",".join(CATEGORY_CANDIDATES))
