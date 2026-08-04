@@ -20,6 +20,10 @@ from dataclasses import dataclass, field
 
 # OCR은 해상도에 민감하다. 이 폭보다 작으면 확대한다.
 MIN_WIDTH = 1000
+# 확대 배율 상한. 작은 로고·도장 이미지가 과도하게 커져 OCR 시간이
+# 폭증하는 것을 막는다. 면적은 배율의 제곱으로 늘어난다(2배 확대 = 4배 면적).
+MAX_UPSCALE = 2.0
+
 # 이 각도보다 작은 기울기는 보정하지 않는다 (불필요한 재보간 방지).
 MIN_DESKEW_ANGLE = 0.5
 
@@ -51,7 +55,10 @@ def upscale(image: Image.Image) -> Image.Image:
     if image.width >= MIN_WIDTH:
         return image
 
-    scale = MIN_WIDTH / image.width
+    scale = min(MIN_WIDTH / image.width, MAX_UPSCALE)
+    if scale <= 1.0:
+        return image
+
     size = (MIN_WIDTH, max(1, round(image.height * scale)))
     return image.resize(size, Image.LANCZOS)
 

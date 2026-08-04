@@ -38,9 +38,13 @@ class OcrExtractor:
     ) -> list[LayoutElement]:
         # OCR 입력 이미지에만 전처리를 적용한다. 반환 좌표는 아래에서
         # 원본 좌표계로 되돌리므로 호출자는 영향을 받지 않는다.
-        prepared = preprocess_for_layout(image.convert("RGB"), PRESET_LIGHT)
+        # source_image(전처리 전)는 표 검출에 사용한다 — OCR 요소 좌표를
+        # 원본 기준으로 되돌리므로, 표 셀 좌표도 같은 기준이어야 매칭된다.
+        source_image = image.convert("RGB")
+        prepared = preprocess_for_layout(source_image, PRESET_LIGHT)
         rgb_image = prepared.image
         inverse_scale = 1.0 / prepared.scale if prepared.scale else 1.0
+
 
 
         # 동시에 여러 요청이 들어와도 OCR은 한 번에 하나씩 실행한다.
@@ -106,7 +110,8 @@ class OcrExtractor:
                 )
             )
 
-        table_cells = self._table_detector.detect(rgb_image)
+        # 표 셀 좌표와 element 좌표를 같은 기준(원본 이미지)으로 맞춘다.
+        table_cells = self._table_detector.detect(source_image)
         return self._merge_document_elements(
             elements,
             table_cells,
