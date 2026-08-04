@@ -8,7 +8,7 @@
 /* ------------------------------------------------------------------ 헤더 */
 .list-page__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
@@ -22,9 +22,26 @@
 }
 
 .list-page__total {
-  margin: 0;
+  margin: 5px 0 0;
   font-size: var(--c-font-sm);
   color: var(--c-text-muted);
+}
+
+.list-page__upload-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 15px;
+  border-radius: var(--c-radius-sm);
+  background: var(--c-text-strong);
+  color: #fff;
+  font-size: var(--c-font-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.list-page__upload-link:hover {
+  background: var(--c-accent);
 }
 
 .list-page__total strong {

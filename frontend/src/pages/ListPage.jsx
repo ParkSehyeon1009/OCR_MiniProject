@@ -103,13 +103,18 @@ export default function ListPage() {
   return (
     <div className="c-scope list-page">
       <header className="list-page__head">
-        <h1 className="list-page__title">문서 목록</h1>
-        {data && (
-          <p className="list-page__total">
-            전체 <strong>{data.total}</strong>건
-            {hasFilter && ' (검색 결과)'}
-          </p>
-        )}
+        <div>
+          <h1 className="list-page__title">문서 목록</h1>
+          {data && (
+            <p className="list-page__total">
+              전체 <strong>{data.total}</strong>건
+              {hasFilter && ' (검색 결과)'}
+            </p>
+          )}
+        </div>
+        <Link to="/upload" className="list-page__upload-link">
+          새 문서 업로드
+        </Link>
       </header>
 
       {/* ------------------------------------------------------- 검색 영역 */}
