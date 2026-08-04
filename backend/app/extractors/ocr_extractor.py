@@ -5,6 +5,7 @@ from paddleocr import PaddleOCR
 from PIL import Image
 
 from app.extractors.layout import LayoutElement
+from app.extractors.table_detector import TableCell, TableDetector
 
 
 class OcrExtractor:
@@ -23,6 +24,7 @@ class OcrExtractor:
 
         # 여러 요청이 같은 OCR 모델을 동시에 사용하지 못하도록 제어한다.
         self._inference_lock = Lock()
+        self._table_detector = TableDetector()
 
     def extract(
         self,
@@ -88,7 +90,123 @@ class OcrExtractor:
                 )
             )
 
-        return self._merge_same_line_elements(elements)
+        table_cells = self._table_detector.detect(rgb_image)
+        return self._merge_document_elements(
+            elements,
+            table_cells,
+            offset_x=offset_x,
+            offset_y=offset_y,
+        )
+
+    @classmethod
+    def _merge_document_elements(
+        cls,
+        elements: list[LayoutElement],
+        table_cells: list[TableCell],
+        *,
+        offset_x: float,
+        offset_y: float,
+    ) -> list[LayoutElement]:
+        if not table_cells:
+            return cls._merge_same_line_elements(elements)
+
+        cell_elements: dict[TableCell, list[LayoutElement]] = {
+            cell: [] for cell in table_cells
+        }
+        outside_elements: list[LayoutElement] = []
+
+        for element in elements:
+            element_x2 = element.x2 if element.x2 is not None else element.x
+            element_y2 = element.y2 if element.y2 is not None else element.y
+            center_x = (element.x + element_x2) / 2 - offset_x
+            center_y = (element.y + element_y2) / 2 - offset_y
+            containing_cell = next(
+                (cell for cell in table_cells if cell.contains(center_x, center_y)),
+                None,
+            )
+
+            if containing_cell is None:
+                outside_elements.append(element)
+            else:
+                cell_elements[containing_cell].append(element)
+
+        merged = cls._merge_same_line_elements(outside_elements)
+        merged.extend(
+            cls._build_table_rows(
+                table_cells,
+                cell_elements,
+                offset_x=offset_x,
+                offset_y=offset_y,
+            )
+        )
+        merged.sort(key=lambda element: (element.y, element.x))
+        return merged
+
+    @classmethod
+    def _build_table_rows(
+        cls,
+        cells: list[TableCell],
+        cell_elements: dict[TableCell, list[LayoutElement]],
+        *,
+        offset_x: float,
+        offset_y: float,
+    ) -> list[LayoutElement]:
+        rows: dict[tuple[int, int], list[TableCell]] = {}
+        for cell in cells:
+            rows.setdefault((cell.table_id, cell.row), []).append(cell)
+
+        table_rows: list[LayoutElement] = []
+        for row_cells in rows.values():
+            ordered_cells = sorted(row_cells, key=lambda cell: cell.column)
+            contents = [
+                cls._format_cell_content(cell_elements[cell])
+                for cell in ordered_cells
+            ]
+            if not any(contents):
+                continue
+
+            row_ocr_elements = [
+                element
+                for cell in ordered_cells
+                for element in cell_elements[cell]
+            ]
+            confidences = [
+                element.confidence
+                for element in row_ocr_elements
+                if element.confidence is not None
+            ]
+
+            table_rows.append(
+                LayoutElement(
+                    x=min(cell.x1 for cell in ordered_cells) + offset_x,
+                    y=min(cell.y1 for cell in ordered_cells) + offset_y,
+                    x2=max(cell.x2 for cell in ordered_cells) + offset_x,
+                    y2=max(cell.y2 for cell in ordered_cells) + offset_y,
+                    content=" | ".join(contents),
+                    source="ocr",
+                    confidence=(
+                        sum(confidences) / len(confidences)
+                        if confidences
+                        else None
+                    ),
+                )
+            )
+
+        return table_rows
+
+    @classmethod
+    def _format_cell_content(cls, elements: list[LayoutElement]) -> str:
+        if not elements:
+            return ""
+
+        lines = cls._merge_same_line_elements(elements)
+        contents = [line.content.strip() for line in lines if line.content.strip()]
+
+        # 좁은 표 셀에서 한 글자씩 세로로 검출된 경우 단어로 복원한다.
+        if contents and all(len(content) == 1 for content in contents):
+            return "".join(contents)
+
+        return " ".join(contents)
 
     @classmethod
     def _merge_same_line_elements(
