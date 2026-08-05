@@ -33,7 +33,15 @@ function pickLatest(analyses, analyzerType) {
   )
 }
 
-export default function DocumentDetail({ document, onDownload, onAnalyze, analyzing = false }) {
+export default function DocumentDetail({ 
+  document,
+  onAnalyze,
+  onDownload,
+  onDelete,
+  analyzing = false,
+  deleting = false,
+}) 
+{
   const [textExpanded, setTextExpanded] = useState(false)
 
   if (!document) return null
@@ -84,6 +92,17 @@ export default function DocumentDetail({ document, onDownload, onAnalyze, analyz
                 요약 .txt 다운로드
               </button>
             )}
+            {onDelete && (
+              <button
+                type="button"
+                className="btn btn--danger"
+                onClick={onDelete}
+                disabled={deleting}
+              >
+                {deleting ? '삭제 중…' : '삭제'}
+              </button>
+            )}
+
           </div>
         </div>
 

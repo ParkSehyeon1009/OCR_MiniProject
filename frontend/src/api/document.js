@@ -70,3 +70,9 @@ export async function analyzeDocument(documentId, analyzerTypes = null) {
   const { data } = await http.post(`/api/documents/${documentId}/analyze`, body)
   return data
 }
+
+// DELETE /api/documents/{id} — 문서·추출 텍스트·분석 결과·원본 파일 삭제
+// 성공 시 본문이 없으므로(204) 반환값이 없다.
+export async function deleteDocument(documentId) {
+  await http.delete(`/api/documents/${documentId}`)
+}

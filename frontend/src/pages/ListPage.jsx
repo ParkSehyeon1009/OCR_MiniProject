@@ -24,9 +24,12 @@ import {
   getDocument,
   analyzeDocument,
   downloadSummary,
+  deleteDocument,
 } from '../api/document'
 import { formatDateShort } from '../utils/format'
 import './ListPage.css'
+
+
 
 // prompts.py 의 CATEGORY_CANDIDATES 와 동일하게 유지해야 한다.
 const CATEGORIES = ['계약서', '보고서', '회의록', '공지사항', '메뉴얼', '기타']
@@ -57,6 +60,7 @@ export default function ListPage() {
   const [detailError, setDetailError] = useState(null)
   const [actionError, setActionError] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // 뒤로가기 등으로 URL 이 바뀌면 입력창도 따라가게 한다.
   useEffect(() => {
@@ -177,6 +181,29 @@ export default function ListPage() {
       setActionError(err)
     }
   }
+
+  async function handleDelete() {
+    // 되돌릴 수 없는 동작이므로 실행 전에 확인을 받는다.
+    const confirmed = window.confirm(
+      `'${detail.filename}' 을(를) 삭제할까요?` +
+    '추출 원문과 분석 결과, 업로드된 원본 파일이 함께 삭제되며 되돌릴 수 없습니다.'
+    )
+    if (!confirmed) return
+
+    setDeleting(true)
+    setActionError(null)
+    try {
+      await deleteDocument(selectedId)
+      closePanel()
+      // 삭제된 문서가 목록에서 사라지도록 다시 조회한다.
+      setReloadKey((n) => n + 1)
+    } catch (err) {
+      setActionError(err)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
 
   const items = data?.items || []
   const totalPages = data?.total_pages || 0
@@ -369,7 +396,9 @@ export default function ListPage() {
                       document={detail}
                       onAnalyze={handleAnalyze}
                       onDownload={handleDownload}
+                      onDelete={handleDelete}
                       analyzing={analyzing}
+                      deleting={deleting}
                     />
                   </>
                 )}

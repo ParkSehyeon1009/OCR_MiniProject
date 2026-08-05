@@ -12,6 +12,10 @@
 #   (여기서는 transactional 컨텍스트매니저)을 쓰지 않는다.
 # =============================================================================
 
+import logging
+import os
+
+from app.core.transaction import transactional
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -26,6 +30,8 @@ from app.repositories.document_repository import DocumentRepository
 
 # 목록 화면에 보여줄 요약 미리보기 길이. 전문은 상세 조회에서 확인한다.
 SUMMARY_PREVIEW_LENGTH = 100
+
+logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class DocumentListRow:
@@ -158,6 +164,28 @@ class DocumentService:
         download_filename = f"{base_name}_요약.txt"
 
         return download_filename, content
+    
+        # ------------------------------------------------------------------ 삭제
+    def delete_document(self, document_id: int) -> None:
+        """문서와 연관 데이터, 업로드된 원본 파일을 함께 제거한다.
+
+        extracted_texts / analyses 는 모델의 cascade 설정으로 함께 삭제된다.
+        파일은 DB 삭제가 커밋된 뒤에 지운다 — 파일을 먼저 지우면 DB 삭제가
+        실패했을 때 "기록은 있는데 파일이 없는" 상태가 되어 더 나쁘다.
+        """
+        document = self.get_document(document_id)
+        stored_path = document.stored_path
+
+        with transactional(self._db):
+            self._document_repository.delete(document)
+
+        if stored_path and os.path.exists(stored_path):
+            try:
+                os.remove(stored_path)
+            except OSError:
+                # 파일 정리 실패는 조회·목록에 영향이 없으므로 요청을 실패시키지 않는다.
+                logger.warning("업로드 파일 삭제 실패: %s", stored_path)
+
 
     @staticmethod
     def _format_datetime(value: datetime | None) -> str:
