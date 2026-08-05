@@ -40,8 +40,9 @@ class PdfExtractor(TextExtractor):
                 has_text = has_text or page_has_text
                 has_ocr = has_ocr or page_has_ocr
 
-                elements = self._merge_text_layer_elements(elements)
-                elements.sort(key=lambda element: (element.y, element.x))
+                if page_has_text:
+                    elements = self._merge_text_layer_elements(elements)
+                    elements.sort(key=lambda element: (element.y, element.x))
 
                 page_content = "\n".join(
                     element.content

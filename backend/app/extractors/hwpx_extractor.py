@@ -147,7 +147,6 @@ class HwpxExtractor(TextExtractor):
             # 문서 전체 추출은 중단하지 않고 해당 이미지만 건너뛴다.
             return ""
 
-        elements.sort(key=lambda element: (element.y, element.x))
         return "\n".join(
             element.content
             for element in elements
