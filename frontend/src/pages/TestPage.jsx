@@ -250,14 +250,14 @@ export default function TestPage() {
               선택 취소
             </button>
             <button type="button" className="upload-button" onClick={handleUpload}>
-              OCR 전송
+              업로드 및 추출
             </button>
           </div>
         )}
 
         {uploading && (
           <div className="processing-panel">
-            <Spinner label="OCR 작업이 진행 중입니다…" />
+            <Spinner label="문서를 처리하고 있습니다..." />
             <p>문서의 텍스트와 이미지를 분석하고 있습니다. 잠시만 기다려 주세요.</p>
           </div>
         )}
