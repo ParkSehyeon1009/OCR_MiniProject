@@ -1,0 +1,35 @@
+.empty-state {
+  display: flex;
+  min-height: 260px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 40px 24px;
+  color: var(--c-text-muted);
+  text-align: center;
+}
+
+.empty-state__icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  margin-bottom: 16px;
+  border: 1px solid var(--c-border);
+  border-radius: 16px;
+  background: var(--c-bg-subtle);
+  color: var(--c-accent);
+}
+
+.empty-state h3 {
+  margin: 0;
+  color: var(--c-text-strong);
+  font-size: 17px;
+}
+
+.empty-state p {
+  max-width: 44ch;
+  margin: 8px 0 20px;
+  font-size: var(--c-font-sm);
+  line-height: 1.6;
+}

@@ -1,33 +1,17 @@
-// =============================================================================
-// 이 파일의 책임: 같은 입력을 PaddleOCR·Tesseract·EasyOCR 세 엔진에 동시에
-//   돌려 정확도와 소요시간을 나란히 비교해서 보여준다. 이미지 파일은 그대로,
-//   PDF/DOCX/HWPX는 백엔드가 첫 페이지(또는 문서 안 첫 그림)를 이미지로
-//   변환한 뒤 비교한다.
-//   "정답 데이터(JSON)"를 함께 올리면 서버가 confidence 대신 정답 텍스트와의
-//   편집거리(CER) 기반 실제 정확도를 계산해 돌려준다 — LabelMe로 라벨링한
-//   shapes[].label/points 형식을 그대로 쓴다. 정답 데이터가 없으면 각 엔진이
-//   스스로 보고하는 confidence 평균을 정확도 대용으로 보여준다.
-// 다른 파일과의 관계: api/ocrCompare.js 의 compareOcr() 을 호출한다.
-//   backend/app/api/routes/ocr_compare_router.py 의 POST /api/ocr-compare,
-//   backend/app/services/ocr_ground_truth.py 와 짝을 이룬다.
-// =============================================================================
-
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Spinner from '../components/Spinner'
 import ErrorBanner from '../components/ErrorBanner'
+import EmptyState from '../components/ui/EmptyState'
+import Icon from '../components/ui/Icon'
+import PageHeader from '../components/ui/PageHeader'
 import { compareOcr } from '../api/ocrCompare'
 import './OcrComparePage.css'
 
 const ENGINES = ['paddle', 'tesseract', 'easyocr']
-
-const ENGINE_LABELS = {
-  paddle: 'PaddleOCR',
-  tesseract: 'Tesseract',
-  easyocr: 'EasyOCR',
-}
+const ENGINE_LABELS = { paddle: 'PaddleOCR', tesseract: 'Tesseract', easyocr: 'EasyOCR' }
 
 function formatPercent(value) {
-  return value === null || value === undefined ? '—' : `${value.toFixed(1)}%`
+  return value === null || value === undefined ? '-' : `${value.toFixed(1)}%`
 }
 
 export default function OcrComparePage() {
@@ -38,21 +22,19 @@ export default function OcrComparePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
+  useEffect(() => () => previewUrl && URL.revokeObjectURL(previewUrl), [previewUrl])
+
   function handleFileChange(event) {
     const file = event.target.files?.[0] ?? null
     setSelectedFile(file)
-    // PDF/DOCX/HWPX는 <img>로 그대로 미리보기가 안 되니, 이미지 파일일 때만 만든다.
-    setPreviewUrl(file && file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
-  }
-
-  function handleGroundTruthChange(event) {
-    setGroundTruthFile(event.target.files?.[0] ?? null)
+    setResult(null)
+    setError(null)
+    setPreviewUrl(file?.type.startsWith('image/') ? URL.createObjectURL(file) : null)
   }
 
   async function handleSubmit(event) {
-    event.preventDefault()
+    event?.preventDefault()
     if (!selectedFile) return
-
     setLoading(true)
     setError(null)
     try {
@@ -65,122 +47,78 @@ export default function OcrComparePage() {
     }
   }
 
-  // 정답 데이터가 있으면 실제 정확도(ground_truth_accuracy)를, 없으면 confidence를 "정확도"로 쓴다.
   const hasGroundTruth = Boolean(
     result && ENGINES.some((engine) => result[engine].ground_truth_accuracy !== null),
   )
-
-  function accuracyOf(engineResult) {
-    return hasGroundTruth ? engineResult.ground_truth_accuracy : engineResult.avg_confidence
-  }
-
-  // 엔진들 중 가장 나은 값에 뱃지를 붙여 한눈에 비교되게 한다. (동률이면 전부 표시)
-  const fastestMs = result
-    ? Math.min(...ENGINES.map((engine) => result[engine].elapsed_ms))
-    : null
+  const accuracyOf = (engineResult) =>
+    hasGroundTruth ? engineResult.ground_truth_accuracy : engineResult.avg_confidence
+  const fastestMs = result ? Math.min(...ENGINES.map((engine) => result[engine].elapsed_ms)) : null
   const accuracyValues = result
-    ? ENGINES.map((engine) => accuracyOf(result[engine])).filter(
-        (value) => value !== null && value !== undefined,
-      )
+    ? ENGINES.map((engine) => accuracyOf(result[engine])).filter((value) => value != null)
     : []
   const highestAccuracy = accuracyValues.length ? Math.max(...accuracyValues) : null
 
   return (
-    <div className="c-scope ocr-compare">
-      <header className="ocr-compare__head">
-        <h1 className="ocr-compare__title">OCR 엔진 비교</h1>
-        <p className="ocr-compare__desc">
-          같은 파일을 PaddleOCR·Tesseract·EasyOCR 세 엔진에 동시에 돌려 정확도와
-          소요시간을 비교합니다. 이미지는 그대로, PDF/DOCX/HWPX는 첫 페이지(또는 문서 안
-          첫 그림)를 이미지로 변환해 비교합니다. LabelMe 형식의 정답 데이터(JSON)를 함께
-          올리면 confidence 대신 정답 텍스트와 대조한 실제 정확도(편집거리 기반)를
-          보여줍니다 — 없으면 각 엔진이 스스로 보고하는 confidence를 정확도 대용으로
-          표시합니다.
-        </p>
-      </header>
+    <main className="c-scope ocr-compare">
+      <PageHeader
+        eyebrow="OCR LAB"
+        title="OCR 엔진 비교"
+        description="동일한 문서를 세 OCR 엔진으로 처리해 인식 결과, 정확도와 소요 시간을 한눈에 비교합니다."
+      />
 
       <form className="ocr-compare__form" onSubmit={handleSubmit}>
         <label className="ocr-compare__field">
-          <span>비교할 파일</span>
-          <input
-            type="file"
-            accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.gif,.pdf,.docx,.hwpx"
-            onChange={handleFileChange}
-            aria-label="비교할 파일 선택"
-          />
+          <span>비교할 문서 <b>필수</b></span>
+          <input type="file" accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.gif,.pdf,.docx,.hwpx" onChange={handleFileChange} />
+          <small>{selectedFile?.name || '이미지, PDF, DOCX, HWPX'}</small>
         </label>
         <label className="ocr-compare__field">
-          <span>정답 데이터 (선택, LabelMe JSON)</span>
-          <input
-            type="file"
-            accept=".json"
-            onChange={handleGroundTruthChange}
-            aria-label="정답 데이터 선택"
-          />
+          <span>정답 데이터 <em>선택</em></span>
+          <input type="file" accept=".json" onChange={(event) => setGroundTruthFile(event.target.files?.[0] ?? null)} />
+          <small>{groundTruthFile?.name || 'LabelMe JSON을 추가하면 실제 정확도를 계산합니다.'}</small>
         </label>
-        <button type="submit" className="btn btn--primary" disabled={!selectedFile || loading}>
-          {loading ? '비교 실행 중...' : '비교 실행'}
+        <button type="submit" className="btn btn--primary ocr-compare__submit" disabled={!selectedFile || loading}>
+          <Icon name="compare" size={16} />
+          {loading ? '비교 실행 중…' : '엔진 비교 실행'}
         </button>
       </form>
 
-      {previewUrl ? (
-        <img className="ocr-compare__preview" src={previewUrl} alt="비교할 이미지 미리보기" />
-      ) : (
-        selectedFile && <p className="ocr-compare__filename">선택한 파일: {selectedFile.name}</p>
-      )}
-
       <ErrorBanner error={error} onRetry={selectedFile ? handleSubmit : undefined} />
 
-      {loading && <Spinner label="세 엔진으로 OCR을 실행하는 중입니다…" />}
-
-      {result && !loading && (
-        <div className="ocr-compare__grid">
-          {ENGINES.map((engine) => {
-            const engineResult = result[engine]
-            const accuracy = accuracyOf(engineResult)
-            return (
-              <div className="ocr-card" key={engine}>
-                <h2 className="ocr-card__title">{ENGINE_LABELS[engine]}</h2>
-
-                <dl className="ocr-card__stats">
-                  <div className="ocr-card__stat">
-                    <dt>{hasGroundTruth ? '정확도 (정답 대조)' : '정확도 (confidence)'}</dt>
-                    <dd>
-                      {formatPercent(accuracy)}
-                      {highestAccuracy !== null && accuracy === highestAccuracy && (
-                        <span className="ocr-card__badge">더 정확함</span>
-                      )}
-                    </dd>
-                  </div>
-                  <div className="ocr-card__stat">
-                    <dt>소요시간</dt>
-                    <dd>
-                      {engineResult.elapsed_ms.toLocaleString()}ms
-                      {engineResult.elapsed_ms === fastestMs && (
-                        <span className="ocr-card__badge">더 빠름</span>
-                      )}
-                    </dd>
-                  </div>
-                  <div className="ocr-card__stat">
-                    <dt>추출 글자 수</dt>
-                    <dd>{engineResult.char_count.toLocaleString()}자</dd>
-                  </div>
-                </dl>
-
-                {hasGroundTruth && (
-                  <p className="ocr-card__confidence-note">
-                    참고: 엔진 자체 confidence는 {formatPercent(engineResult.avg_confidence)}
-                  </p>
-                )}
-
-                <pre className="ocr-card__text">
-                  {engineResult.text || '(인식된 텍스트 없음)'}
-                </pre>
-              </div>
-            )
-          })}
-        </div>
+      {selectedFile && (
+        <section className="ocr-compare__source">
+          {previewUrl ? <img src={previewUrl} alt="선택한 문서 미리보기" /> : <Icon name="documents" size={28} />}
+          <div><span>선택한 원본</span><strong>{selectedFile.name}</strong></div>
+        </section>
       )}
-    </div>
+
+      {loading ? (
+        <div className="ocr-compare__loading"><Spinner label="세 가지 OCR 엔진으로 문서를 분석하고 있습니다…" /></div>
+      ) : result ? (
+        <section className="ocr-compare__results" aria-label="OCR 비교 결과">
+          <div className="ocr-compare__result-head"><div><span>COMPARISON RESULT</span><h2>엔진별 분석 결과</h2></div><p>{hasGroundTruth ? '정답 데이터 기준 정확도' : '엔진 confidence 기준'}</p></div>
+          <div className="ocr-compare__grid">
+            {ENGINES.map((engine) => {
+              const engineResult = result[engine]
+              const accuracy = accuracyOf(engineResult)
+              return (
+                <article className="ocr-card" key={engine}>
+                  <div className="ocr-card__head"><span>{ENGINE_LABELS[engine]}</span>{accuracy === highestAccuracy && <b>최고 정확도</b>}</div>
+                  <dl className="ocr-card__stats">
+                    <div><dt>{hasGroundTruth ? '정확도' : 'Confidence'}</dt><dd>{formatPercent(accuracy)}</dd></div>
+                    <div><dt>소요 시간</dt><dd>{engineResult.elapsed_ms.toLocaleString()}ms {engineResult.elapsed_ms === fastestMs && <small>가장 빠름</small>}</dd></div>
+                    <div><dt>추출 글자</dt><dd>{engineResult.char_count.toLocaleString()}자</dd></div>
+                  </dl>
+                  {hasGroundTruth && <p className="ocr-card__note">엔진 confidence {formatPercent(engineResult.avg_confidence)}</p>}
+                  <pre className="ocr-card__text">{engineResult.text || '(인식된 텍스트 없음)'}</pre>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+      ) : (
+        <EmptyState icon="compare" title="비교 결과가 여기에 표시됩니다" description="문서와 선택적으로 정답 데이터를 첨부한 뒤 엔진 비교를 실행하세요." />
+      )}
+    </main>
   )
 }

@@ -1,0 +1,2 @@
+.not-found-page { display: grid; min-height: calc(100svh - var(--c-header-height)); padding: var(--c-page-x); place-items: center; }
+.not-found-page .empty-state { width: min(100%, 620px); }
