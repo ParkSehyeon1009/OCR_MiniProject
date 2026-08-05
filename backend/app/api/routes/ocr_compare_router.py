@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, UploadFile
 from app.core.config import settings
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import BusinessError
-from app.dependencies import get_ocr_compare_service
+from app.ocr_compare_dependencies import get_ocr_compare_service
 from app.schemas.ocr_compare import OcrCompareResponse, OcrEngineResult
 from app.services.ocr_compare_image_loader import ALLOWED_EXTENSIONS, load_comparison_image
 from app.services.ocr_compare_service import OcrCompareService

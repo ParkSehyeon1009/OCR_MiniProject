@@ -1,4 +1,4 @@
-import { http } from './http'
+import { ocrCompareHttp } from './ocrCompareHttp'
 
 // POST /api/ocr-compare — 같은 파일을 PaddleOCR/Tesseract/EasyOCR 세 엔진에
 // 돌려 소요시간과 정확도를 비교한다. groundTruthFile(LabelMe JSON)을 같이
@@ -10,7 +10,7 @@ export async function compareOcr(file, groundTruthFile = null) {
     formData.append('ground_truth', groundTruthFile)
   }
 
-  const { data } = await http.post('/api/ocr-compare', formData, {
+  const { data } = await ocrCompareHttp.post('/api/ocr-compare', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   })
   return data

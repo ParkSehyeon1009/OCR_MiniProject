@@ -27,20 +27,17 @@ from app.analyzers.summary_analyzer import SummaryAnalyzer
 from app.core.config import settings
 from app.db.session import get_db
 from app.extractors.docx_extractor import DocxExtractor
-from app.extractors.easyocr_extractor import EasyOcrExtractor
 from app.extractors.fake_extractor import FakeExtractor
 from app.extractors.hwpx_extractor import HwpxExtractor
 from app.extractors.image_extractor import ImageExtractor
 from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.pdf_extractor import PdfExtractor
 from app.extractors.registry import ExtractorRegistry
-from app.extractors.tesseract_extractor import TesseractExtractor
 from app.repositories.analysis_repository import AnalysisRepository
 from app.repositories.document_repository import DocumentRepository
 from app.services.analysis_service import AnalysisService
 from app.services.extraction_service import ExtractionService
 from app.services.document_service import DocumentService
-from app.services.ocr_compare_service import OcrCompareService
 
 
 
@@ -56,8 +53,9 @@ def get_ai_client() -> AIClientProtocol:
 
 @lru_cache
 def get_ocr_extractor() -> OcrExtractor:
-    # PaddleOCR은 모델 로딩 비용이 커서, 업로드 추출 파이프라인과 OCR 비교
-    # 화면(ocr_compare_router)이 인스턴스를 공유하도록 별도 provider로 뺐다.
+    # PaddleOCR은 모델 로딩 비용이 커서 요청마다 새로 만들지 않고 재사용한다.
+    # OCR 비교 서비스(app/ocr_compare_main.py)는 별도 프로세스로 분리돼 있어
+    # 이 인스턴스와 공유하지 않고 자기 프로세스에서 독립적으로 하나 더 가진다.
     return OcrExtractor()
 
 
@@ -87,24 +85,6 @@ def get_analyzer_registry() -> dict[str, Analyzer]:
         "category": CategoryAnalyzer(ai_client),
     }
     return registry
-
-
-@lru_cache
-def get_tesseract_extractor() -> TesseractExtractor:
-    return TesseractExtractor()
-
-
-@lru_cache
-def get_easyocr_extractor() -> EasyOcrExtractor:
-    return EasyOcrExtractor()
-
-
-def get_ocr_compare_service(
-    paddle_extractor: OcrExtractor = Depends(get_ocr_extractor),
-    tesseract_extractor: TesseractExtractor = Depends(get_tesseract_extractor),
-    easyocr_extractor: EasyOcrExtractor = Depends(get_easyocr_extractor),
-) -> OcrCompareService:
-    return OcrCompareService(paddle_extractor, tesseract_extractor, easyocr_extractor)
 
 
 def get_document_repository(db: Session = Depends(get_db)) -> DocumentRepository:

@@ -38,6 +38,25 @@ services:
       - ./backend/uploads:/app/uploads
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
+  # OCR 비교 화면(/api/ocr-compare) 전용 서비스. Tesseract/EasyOCR(+PyTorch)처럼
+  # 무거운 의존성을 메인 api 프로세스와 분리하기 위해 별도 컨테이너로 띄운다.
+  # 이미지는 api와 동일한 Dockerfile을 공유하고, 실행 앱(app.ocr_compare_main)과
+  # 포트만 다르다. DB를 쓰지 않으므로 depends_on/DATABASE_URL 오버라이드가 없다.
+  ocr-compare:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ocr-compare-api
+    env_file:
+      - ./backend/.env.example
+    environment:
+      TZ: Asia/Seoul
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./backend/app:/app/app
+    command: uvicorn app.ocr_compare_main:app --host 0.0.0.0 --port 8001 --reload
+
   frontend:
     build:
       context: ./frontend

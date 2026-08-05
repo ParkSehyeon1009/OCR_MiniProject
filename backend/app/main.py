@@ -92,8 +92,10 @@ def health() -> dict[str, str]:
 from app.api.routes import upload_router      # 담당자 A: POST /api/documents
 from app.api.routes import analysis_router    # 담당자 B: POST /api/documents/{id}/analyze
 from app.api.routes import document_router    # 담당자 C: GET /api/documents, /{id}, /download, DELETE
-from app.api.routes import ocr_compare_router # OCR 비교 테스트: POST /api/ocr-compare
 app.include_router(upload_router.router)
 app.include_router(analysis_router.router)
 app.include_router(document_router.router)
-app.include_router(ocr_compare_router.router)
+# OCR 비교 테스트(POST /api/ocr-compare)는 Tesseract/EasyOCR(+PyTorch)처럼 무거운
+# 의존성을 이 프로세스에서 완전히 격리하기 위해 별도 앱(app/ocr_compare_main.py)으로
+# 분리했다. 여기서는 절대로 import하지 않는다 — import하는 순간 무거운 패키지가
+# 이 프로세스에도 로드된다.
