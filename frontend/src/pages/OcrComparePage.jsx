@@ -1,12 +1,15 @@
 // =============================================================================
 // 이 파일의 책임: 같은 입력을 PaddleOCR·Tesseract·EasyOCR 세 엔진에 동시에
-//   돌려 정확도(각 엔진이 자체 보고하는 인식 신뢰도 평균)와 소요시간을 나란히
-//   비교해서 보여준다. 이미지 파일은 그대로, PDF/DOCX/HWPX는 백엔드가 첫
-//   페이지(또는 문서 안 첫 그림)를 이미지로 변환한 뒤 비교한다. 정답 텍스트가
-//   없어 실제 정오 비교는 불가능하므로, "정확도"는 confidence 평균을 대용으로
-//   쓴다는 점을 화면에도 명시한다.
+//   돌려 정확도와 소요시간을 나란히 비교해서 보여준다. 이미지 파일은 그대로,
+//   PDF/DOCX/HWPX는 백엔드가 첫 페이지(또는 문서 안 첫 그림)를 이미지로
+//   변환한 뒤 비교한다.
+//   "정답 데이터(JSON)"를 함께 올리면 서버가 confidence 대신 정답 텍스트와의
+//   편집거리(CER) 기반 실제 정확도를 계산해 돌려준다 — LabelMe로 라벨링한
+//   shapes[].label/points 형식을 그대로 쓴다. 정답 데이터가 없으면 각 엔진이
+//   스스로 보고하는 confidence 평균을 정확도 대용으로 보여준다.
 // 다른 파일과의 관계: api/ocrCompare.js 의 compareOcr() 을 호출한다.
-//   backend/app/api/routes/ocr_compare_router.py 의 POST /api/ocr-compare 와 짝을 이룬다.
+//   backend/app/api/routes/ocr_compare_router.py 의 POST /api/ocr-compare,
+//   backend/app/services/ocr_ground_truth.py 와 짝을 이룬다.
 // =============================================================================
 
 import { useState } from 'react'
@@ -23,13 +26,14 @@ const ENGINE_LABELS = {
   easyocr: 'EasyOCR',
 }
 
-function formatConfidence(value) {
+function formatPercent(value) {
   return value === null || value === undefined ? '—' : `${value.toFixed(1)}%`
 }
 
 export default function OcrComparePage() {
   const [selectedFile, setSelectedFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [groundTruthFile, setGroundTruthFile] = useState(null)
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -41,6 +45,10 @@ export default function OcrComparePage() {
     setPreviewUrl(file && file.type.startsWith('image/') ? URL.createObjectURL(file) : null)
   }
 
+  function handleGroundTruthChange(event) {
+    setGroundTruthFile(event.target.files?.[0] ?? null)
+  }
+
   async function handleSubmit(event) {
     event.preventDefault()
     if (!selectedFile) return
@@ -48,7 +56,7 @@ export default function OcrComparePage() {
     setLoading(true)
     setError(null)
     try {
-      setResult(await compareOcr(selectedFile))
+      setResult(await compareOcr(selectedFile, groundTruthFile))
     } catch (err) {
       setError(err)
       setResult(null)
@@ -57,37 +65,59 @@ export default function OcrComparePage() {
     }
   }
 
+  // 정답 데이터가 있으면 실제 정확도(ground_truth_accuracy)를, 없으면 confidence를 "정확도"로 쓴다.
+  const hasGroundTruth = Boolean(
+    result && ENGINES.some((engine) => result[engine].ground_truth_accuracy !== null),
+  )
+
+  function accuracyOf(engineResult) {
+    return hasGroundTruth ? engineResult.ground_truth_accuracy : engineResult.avg_confidence
+  }
+
   // 엔진들 중 가장 나은 값에 뱃지를 붙여 한눈에 비교되게 한다. (동률이면 전부 표시)
   const fastestMs = result
     ? Math.min(...ENGINES.map((engine) => result[engine].elapsed_ms))
     : null
-  const confidenceValues = result
-    ? ENGINES.map((engine) => result[engine].avg_confidence).filter(
+  const accuracyValues = result
+    ? ENGINES.map((engine) => accuracyOf(result[engine])).filter(
         (value) => value !== null && value !== undefined,
       )
     : []
-  const highestConfidence = confidenceValues.length ? Math.max(...confidenceValues) : null
+  const highestAccuracy = accuracyValues.length ? Math.max(...accuracyValues) : null
 
   return (
     <div className="c-scope ocr-compare">
       <header className="ocr-compare__head">
         <h1 className="ocr-compare__title">OCR 엔진 비교</h1>
         <p className="ocr-compare__desc">
-          같은 파일을 PaddleOCR·Tesseract·EasyOCR 세 엔진에 동시에 돌려 인식
-          신뢰도(정확도 대용)와 소요시간을 비교합니다. 이미지는 그대로, PDF/DOCX/HWPX는
-          첫 페이지(또는 문서 안 첫 그림)를 이미지로 변환해 비교합니다. 정답 텍스트가 없어
-          실제 오탈자 비교는 아니며, 각 엔진이 스스로 보고하는 confidence 평균을 정확도로
+          같은 파일을 PaddleOCR·Tesseract·EasyOCR 세 엔진에 동시에 돌려 정확도와
+          소요시간을 비교합니다. 이미지는 그대로, PDF/DOCX/HWPX는 첫 페이지(또는 문서 안
+          첫 그림)를 이미지로 변환해 비교합니다. LabelMe 형식의 정답 데이터(JSON)를 함께
+          올리면 confidence 대신 정답 텍스트와 대조한 실제 정확도(편집거리 기반)를
+          보여줍니다 — 없으면 각 엔진이 스스로 보고하는 confidence를 정확도 대용으로
           표시합니다.
         </p>
       </header>
 
       <form className="ocr-compare__form" onSubmit={handleSubmit}>
-        <input
-          type="file"
-          accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.gif,.pdf,.docx,.hwpx"
-          onChange={handleFileChange}
-          aria-label="비교할 파일 선택"
-        />
+        <label className="ocr-compare__field">
+          <span>비교할 파일</span>
+          <input
+            type="file"
+            accept=".png,.jpg,.jpeg,.bmp,.tif,.tiff,.webp,.gif,.pdf,.docx,.hwpx"
+            onChange={handleFileChange}
+            aria-label="비교할 파일 선택"
+          />
+        </label>
+        <label className="ocr-compare__field">
+          <span>정답 데이터 (선택, LabelMe JSON)</span>
+          <input
+            type="file"
+            accept=".json"
+            onChange={handleGroundTruthChange}
+            aria-label="정답 데이터 선택"
+          />
+        </label>
         <button type="submit" className="btn btn--primary" disabled={!selectedFile || loading}>
           {loading ? '비교 실행 중...' : '비교 실행'}
         </button>
@@ -107,19 +137,19 @@ export default function OcrComparePage() {
         <div className="ocr-compare__grid">
           {ENGINES.map((engine) => {
             const engineResult = result[engine]
+            const accuracy = accuracyOf(engineResult)
             return (
               <div className="ocr-card" key={engine}>
                 <h2 className="ocr-card__title">{ENGINE_LABELS[engine]}</h2>
 
                 <dl className="ocr-card__stats">
                   <div className="ocr-card__stat">
-                    <dt>정확도</dt>
+                    <dt>{hasGroundTruth ? '정확도 (정답 대조)' : '정확도 (confidence)'}</dt>
                     <dd>
-                      {formatConfidence(engineResult.avg_confidence)}
-                      {highestConfidence !== null &&
-                        engineResult.avg_confidence === highestConfidence && (
-                          <span className="ocr-card__badge">더 정확함</span>
-                        )}
+                      {formatPercent(accuracy)}
+                      {highestAccuracy !== null && accuracy === highestAccuracy && (
+                        <span className="ocr-card__badge">더 정확함</span>
+                      )}
                     </dd>
                   </div>
                   <div className="ocr-card__stat">
@@ -136,6 +166,12 @@ export default function OcrComparePage() {
                     <dd>{engineResult.char_count.toLocaleString()}자</dd>
                   </div>
                 </dl>
+
+                {hasGroundTruth && (
+                  <p className="ocr-card__confidence-note">
+                    참고: 엔진 자체 confidence는 {formatPercent(engineResult.avg_confidence)}
+                  </p>
+                )}
 
                 <pre className="ocr-card__text">
                   {engineResult.text || '(인식된 텍스트 없음)'}
