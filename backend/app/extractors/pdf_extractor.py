@@ -10,6 +10,7 @@ from app.core.exceptions import BusinessError
 from app.extractors.layout import LayoutElement
 from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.protocol import ExtractResult, TextExtractor
+from app.extractors.reading_order import build_reading_groups
 from app.models.enums import ExtractMethod
 
 
@@ -40,7 +41,13 @@ class PdfExtractor(TextExtractor):
                 has_text = has_text or page_has_text
                 has_ocr = has_ocr or page_has_ocr
 
-                if page_has_text:
+                if page_has_text and not page_has_ocr:
+                    elements = self._order_text_layer_elements(
+                        elements,
+                        page_width=float(page.rect.width),
+                        page_left=float(page.rect.x0),
+                    )
+                elif page_has_text:
                     elements = self._merge_text_layer_elements(elements)
                     elements.sort(key=lambda element: (element.y, element.x))
 
@@ -136,6 +143,30 @@ class PdfExtractor(TextExtractor):
                 )
 
         return elements
+
+    @classmethod
+    def _order_text_layer_elements(
+        cls,
+        elements: list[LayoutElement],
+        *,
+        page_width: float,
+        page_left: float,
+    ) -> list[LayoutElement]:
+        groups = build_reading_groups(
+            elements,
+            [],
+            page_width=page_width,
+            page_left=page_left,
+        )
+        if groups is None:
+            merged = cls._merge_text_layer_elements(elements)
+            merged.sort(key=lambda element: (element.y, element.x))
+            return merged
+
+        ordered: list[LayoutElement] = []
+        for group in groups:
+            ordered.extend(cls._merge_text_layer_elements(group.elements))
+        return ordered
 
     @classmethod
     def _merge_text_layer_elements(
