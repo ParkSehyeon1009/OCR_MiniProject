@@ -10,7 +10,9 @@
 #   않으므로, 검색·페이징 쿼리를 SQLAlchemy Query API로 직접 작성한다.
 # =============================================================================
 
-from sqlalchemy import or_
+import re
+
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.document import Analysis, Document, ExtractedText
@@ -45,12 +47,16 @@ class DocumentRepository:
         if q:
             # 파일명 또는 본문(extracted_texts.content) 부분검색.
             # outerjoin 대신 서브쿼리로 매칭 id를 걸러서 join으로 인한 행 중복을 피한다.
+            # 본문에 섞인 공백, 줄바꿈 제거후 비교 로직 추가
+            normalized_q = re.sub(r"\s+", "", q)
             matching_ids = self._db.query(ExtractedText.document_id).filter(
-                ExtractedText.content.ilike(f"%{q}%")
+                func.regexp_replace(ExtractedText.content, r"\s+", "", "g").ilike(
+                    f"%{normalized_q}%")
             )
             query = query.filter(
-                or_(Document.filename.ilike(f"%{q}%"), Document.id.in_(matching_ids))
-            )
+                or_(func.regexp_replace(Document.filename,r"\s+","","g").ilike(f"%{normalized_q}%"), 
+                    Document.id.in_(matching_ids))
+                )
 
         if document_type:
             query = query.filter(Document.document_type == document_type)
