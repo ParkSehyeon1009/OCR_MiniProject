@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from PIL import Image
 
-from app.extractors.easyocr_extractor import EasyOcrExtractor
+from app.extractors.easyocr_subprocess_extractor import EasyOcrSubprocessExtractor
 from app.extractors.layout import LayoutElement
 from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.tesseract_extractor import TesseractExtractor
@@ -29,7 +29,7 @@ class OcrCompareService:
         self,
         paddle_extractor: OcrExtractor,
         tesseract_extractor: TesseractExtractor,
-        easyocr_extractor: EasyOcrExtractor,
+        easyocr_extractor: EasyOcrSubprocessExtractor,
     ) -> None:
         self._paddle_extractor = paddle_extractor
         self._tesseract_extractor = tesseract_extractor

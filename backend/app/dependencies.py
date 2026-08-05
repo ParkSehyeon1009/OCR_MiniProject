@@ -27,7 +27,7 @@ from app.analyzers.summary_analyzer import SummaryAnalyzer
 from app.core.config import settings
 from app.db.session import get_db
 from app.extractors.docx_extractor import DocxExtractor
-from app.extractors.easyocr_extractor import EasyOcrExtractor
+from app.extractors.easyocr_subprocess_extractor import EasyOcrSubprocessExtractor
 from app.extractors.fake_extractor import FakeExtractor
 from app.extractors.hwpx_extractor import HwpxExtractor
 from app.extractors.image_extractor import ImageExtractor
@@ -94,15 +94,18 @@ def get_tesseract_extractor() -> TesseractExtractor:
     return TesseractExtractor()
 
 
-@lru_cache
-def get_easyocr_extractor() -> EasyOcrExtractor:
-    return EasyOcrExtractor()
+def get_easyocr_extractor() -> EasyOcrSubprocessExtractor:
+    # EasyOCR은 사용 빈도가 낮아 다른 엔진과 달리 싱글턴으로 캐시하지 않는다.
+    # 같은 프로세스 안에서 로드/해제하는 방식은 PyTorch의 캐싱 allocator가
+    # 해제된 메모리를 OS에 돌려주지 않아 메모리가 계속 높게 남는 문제가 있어서
+    # (실측 확인됨), 매 호출을 별도 프로세스로 실행해 완전히 격리한다.
+    return EasyOcrSubprocessExtractor()
 
 
 def get_ocr_compare_service(
     paddle_extractor: OcrExtractor = Depends(get_ocr_extractor),
     tesseract_extractor: TesseractExtractor = Depends(get_tesseract_extractor),
-    easyocr_extractor: EasyOcrExtractor = Depends(get_easyocr_extractor),
+    easyocr_extractor: EasyOcrSubprocessExtractor = Depends(get_easyocr_extractor),
 ) -> OcrCompareService:
     return OcrCompareService(paddle_extractor, tesseract_extractor, easyocr_extractor)
 
