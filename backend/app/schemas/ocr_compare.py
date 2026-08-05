@@ -9,6 +9,7 @@ class OcrEngineResult(BaseModel):
     char_count: int
     avg_confidence: float | None = None
     elapsed_ms: int
+    ground_truth_accuracy: float | None = None
 
 
 class OcrCompareResponse(BaseModel):

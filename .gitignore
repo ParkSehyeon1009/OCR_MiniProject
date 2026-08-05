@@ -14,7 +14,7 @@ ENV/
 # ===== Env (never commit) =====
 .env
 .env.local
-.env.*.local
+.env.*.localx
 !.env.example
 
 # ===== Test / Cache =====
