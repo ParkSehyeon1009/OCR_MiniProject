@@ -47,16 +47,28 @@ class DocumentRepository:
         if q:
             # 파일명 또는 본문(extracted_texts.content) 부분검색.
             # outerjoin 대신 서브쿼리로 매칭 id를 걸러서 join으로 인한 행 중복을 피한다.
-            # 본문에 섞인 공백, 줄바꿈 제거후 비교 로직 추가
+            # 자간이 넓은 공문서는 추출 결과에 "제 안 자" 처럼 공백이 섞여 들어가므로,
+            # 저장된 값과 검색어 양쪽에서 공백·줄바꿈을 제거한 뒤 비교한다.
             normalized_q = re.sub(r"\s+", "", q)
-            matching_ids = self._db.query(ExtractedText.document_id).filter(
-                func.regexp_replace(ExtractedText.content, r"\s+", "", "g").ilike(
-                    f"%{normalized_q}%")
-            )
-            query = query.filter(
-                or_(func.regexp_replace(Document.filename,r"\s+","","g").ilike(f"%{normalized_q}%"), 
-                    Document.id.in_(matching_ids))
+
+            # 공백만 입력된 경우에는 조건을 걸지 않는다 (전체 조회와 같아지는 것을 방지).
+            if normalized_q:
+                pattern = f"%{normalized_q}%"
+
+                matching_ids = self._db.query(ExtractedText.document_id).filter(
+                    func.regexp_replace(
+                        ExtractedText.content, r"\s+", "", "g"
+                    ).ilike(pattern)
                 )
+                query = query.filter(
+                    or_(
+                        func.regexp_replace(
+                            Document.filename, r"\s+", "", "g"
+                        ).ilike(pattern),
+                        Document.id.in_(matching_ids),
+                    )
+                )
+
 
         if document_type:
             query = query.filter(Document.document_type == document_type)
