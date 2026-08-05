@@ -1,3 +1,5 @@
+from dataclasses import asdict
+from logging import getLogger
 from threading import Lock
 
 import numpy as np
@@ -7,8 +9,13 @@ from PIL import Image
 from app.extractors.layout import LayoutElement
 from app.extractors.table_detector import TableCell, TableDetector
 
-from app.extractors.preprocessing import PRESET_LIGHT, preprocess_for_layout
+from app.extractors.preprocessing import (
+    build_preprocess_plan,
+    normalize_input_image,
+    preprocess_for_layout,
+)
 
+logger = getLogger(__name__)
 
 
 
@@ -21,8 +28,9 @@ class OcrExtractor:
     def __init__(self) -> None:
         self._ocr = PaddleOCR(
             lang="korean",
-            use_doc_orientation_classify=False, #기울기보정 (기본값)
-            use_doc_unwarping=True, #원근값보정 (기본값)
+            # 선택 모듈을 한 번만 로드하고 이미지 분석 결과에 따라 요청별로 사용한다.
+            use_doc_orientation_classify=True,
+            use_doc_unwarping=True,
             use_textline_orientation=True,
         )
 
@@ -35,21 +43,39 @@ class OcrExtractor:
         image: Image.Image,
         offset_x: float = 0,
         offset_y: float = 0,
+        normalize_orientation: bool = True,
     ) -> list[LayoutElement]:
-        # OCR 입력 이미지에만 전처리를 적용한다. 반환 좌표는 아래에서
-        # 원본 좌표계로 되돌리므로 호출자는 영향을 받지 않는다.
-        # source_image(전처리 전)는 표 검출에 사용한다 — OCR 요소 좌표를
-        # 원본 기준으로 되돌리므로, 표 셀 좌표도 같은 기준이어야 매칭된다.
-        source_image = image.convert("RGB")
-        prepared = preprocess_for_layout(source_image, PRESET_LIGHT)
+        source_image = normalize_input_image(
+            image,
+            apply_exif_orientation=normalize_orientation,
+        )
+        quality, plan = build_preprocess_plan(source_image)
+        prepared = preprocess_for_layout(source_image, plan.steps)
         rgb_image = prepared.image
         inverse_scale = 1.0 / prepared.scale if prepared.scale else 1.0
-
-
+        logger.info(
+            "OCR 전처리 선택: steps=%s paddle=(orientation=%s, unwarping=%s, "
+            "textline=%s) reasons=%s quality=%s",
+            prepared.applied,
+            plan.use_doc_orientation_classify,
+            plan.use_doc_unwarping,
+            plan.use_textline_orientation,
+            plan.reasons,
+            asdict(quality) if quality is not None else None,
+        )
 
         # 동시에 여러 요청이 들어와도 OCR은 한 번에 하나씩 실행한다.
         with self._inference_lock:
-            results = self._ocr.ocr(np.asarray(rgb_image))
+            results = list(
+                self._ocr.predict(
+                    np.asarray(rgb_image),
+                    use_doc_orientation_classify=(
+                        plan.use_doc_orientation_classify
+                    ),
+                    use_doc_unwarping=plan.use_doc_unwarping,
+                    use_textline_orientation=plan.use_textline_orientation,
+                )
+            )
 
         if not results:
             return []
