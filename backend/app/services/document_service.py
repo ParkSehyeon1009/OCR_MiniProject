@@ -14,8 +14,6 @@
 
 import logging
 import os
-
-from app.core.transaction import transactional
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -23,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import BusinessError
+from app.core.transaction import transactional
 from app.models.document import Document
 from app.models.enums import AnalyzerType
 from app.repositories.analysis_repository import AnalysisRepository
@@ -165,7 +164,7 @@ class DocumentService:
 
         return download_filename, content
     
-        # ------------------------------------------------------------------ 삭제
+    # ------------------------------------------------------------------ 삭제
     def delete_document(self, document_id: int) -> None:
         """문서와 연관 데이터, 업로드된 원본 파일을 함께 제거한다.
 

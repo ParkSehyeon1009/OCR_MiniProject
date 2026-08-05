@@ -93,7 +93,7 @@ def get_document(
 @router.get("/documents/{document_id}/download")
 def download_summary(
     document_id: int,
-    format: str = Query("txt", pattern="^txt$", description="현재 txt만 지원"),
+    format: str = Query("txt", alias="format", pattern="^txt$", description="현재 txt만 지원"),
     service: DocumentService = Depends(get_document_service),
 ) -> Response:
     filename, content = service.build_summary_text(document_id)
