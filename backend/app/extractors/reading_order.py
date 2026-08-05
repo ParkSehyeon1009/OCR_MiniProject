@@ -333,7 +333,7 @@ def _looks_like_spaced_heading(line: list[_ReadingItem]) -> bool:
         <= median_height * 2.5
         for item in line
     )
-    return narrow_count >= len(line) / 2
+    return narrow_count == len(line)
 
 
 def _vertical_overlap(

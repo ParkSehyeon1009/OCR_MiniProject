@@ -342,7 +342,8 @@ class PdfExtractor(TextExtractor):
             for element in ocr_elements
             if element.content.strip()
         )
-        if not content:
+        recognized_char_count = sum(character.isalnum() for character in content)
+        if not content or recognized_char_count < 2:
             return []
 
         confidences = [
