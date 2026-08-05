@@ -21,7 +21,7 @@ class OcrExtractor:
     def __init__(self) -> None:
         self._ocr = PaddleOCR(
             lang="korean",
-            use_doc_orientation_classify=True, #기울기보정 (기본값)
+            use_doc_orientation_classify=False, #기울기보정 (기본값)
             use_doc_unwarping=True, #원근값보정 (기본값)
             use_textline_orientation=True,
         )

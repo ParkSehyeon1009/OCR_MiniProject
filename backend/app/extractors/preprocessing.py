@@ -59,7 +59,10 @@ def upscale(image: Image.Image) -> Image.Image:
     if scale <= 1.0:
         return image
 
-    size = (MIN_WIDTH, max(1, round(image.height * scale)))
+    size = (
+        max(1, round(image.width * scale)),
+        max(1, round(image.height * scale)),
+    )
     return image.resize(size, Image.LANCZOS)
 
 def denoise(image: Image.Image) -> Image.Image:
@@ -207,4 +210,3 @@ def preprocess_for_layout(
         )
 
     return result
-

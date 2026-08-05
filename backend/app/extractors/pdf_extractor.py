@@ -14,6 +14,8 @@ from app.models.enums import ExtractMethod
 
 
 class PdfExtractor(TextExtractor):
+    _LINE_OVERLAP_RATIO = 0.45
+
     def __init__(self, ocr: OcrExtractor) -> None:
         self._ocr = ocr
 
@@ -38,6 +40,7 @@ class PdfExtractor(TextExtractor):
                 has_text = has_text or page_has_text
                 has_ocr = has_ocr or page_has_ocr
 
+                elements = self._merge_text_layer_elements(elements)
                 elements.sort(key=lambda element: (element.y, element.x))
 
                 page_content = "\n".join(
@@ -78,10 +81,10 @@ class PdfExtractor(TextExtractor):
             block_type = block.get("type")
 
             if block_type == 0:
-                text_element = self._extract_text_block(block)
+                text_elements = self._extract_text_block(block)
 
-                if text_element is not None:
-                    elements.append(text_element)
+                if text_elements:
+                    elements.extend(text_elements)
                     has_text = True
 
             elif block_type == 1:
@@ -104,8 +107,8 @@ class PdfExtractor(TextExtractor):
     @staticmethod
     def _extract_text_block(
         block: dict[str, Any],
-    ) -> LayoutElement | None:
-        lines: list[str] = []
+    ) -> list[LayoutElement]:
+        elements: list[LayoutElement] = []
 
         for line in block.get("lines", []):
             spans: list[str] = []
@@ -119,19 +122,85 @@ class PdfExtractor(TextExtractor):
             line_text = " ".join(spans).strip()
 
             if line_text:
-                lines.append(line_text)
+                bbox = line.get("bbox", block.get("bbox", (0, 0, 0, 0)))
+                elements.append(
+                    LayoutElement(
+                        x=float(bbox[0]),
+                        y=float(bbox[1]),
+                        x2=float(bbox[2]),
+                        y2=float(bbox[3]),
+                        content=line_text,
+                        source="text",
+                    )
+                )
 
-        content = "\n".join(lines).strip()
+        return elements
 
-        if not content:
-            return None
+    @classmethod
+    def _merge_text_layer_elements(
+        cls,
+        elements: list[LayoutElement],
+    ) -> list[LayoutElement]:
+        """같은 줄의 PDF 텍스트 블록만 병합하고 OCR 요소는 그대로 둔다."""
+        text_elements = [element for element in elements if element.source == "text"]
+        other_elements = [element for element in elements if element.source != "text"]
 
-        bbox = block.get("bbox", (0, 0, 0, 0))
+        if len(text_elements) < 2:
+            return elements
+
+        lines: list[list[LayoutElement]] = []
+        for element in sorted(text_elements, key=cls._vertical_sort_key):
+            matching_line = next(
+                (line for line in lines if cls._belongs_to_line(element, line)),
+                None,
+            )
+
+            if matching_line is None:
+                lines.append([element])
+            else:
+                matching_line.append(element)
+
+        merged_text = [cls._merge_text_line(line) for line in lines]
+        return merged_text + other_elements
+
+    @staticmethod
+    def _vertical_sort_key(element: LayoutElement) -> tuple[float, float]:
+        y2 = element.y2 if element.y2 is not None else element.y
+        return ((element.y + y2) / 2, element.x)
+
+    @classmethod
+    def _belongs_to_line(
+        cls,
+        element: LayoutElement,
+        line: list[LayoutElement],
+    ) -> bool:
+        element_y2 = element.y2 if element.y2 is not None else element.y
+        line_y1 = min(item.y for item in line)
+        line_y2 = max(item.y2 if item.y2 is not None else item.y for item in line)
+
+        element_height = max(element_y2 - element.y, 1.0)
+        line_height = max(line_y2 - line_y1, 1.0)
+        overlap = max(0.0, min(element_y2, line_y2) - max(element.y, line_y1))
+        overlap_ratio = overlap / min(element_height, line_height)
+
+        return overlap_ratio >= cls._LINE_OVERLAP_RATIO
+
+    @staticmethod
+    def _merge_text_line(line: list[LayoutElement]) -> LayoutElement:
+        ordered = sorted(line, key=lambda element: element.x)
 
         return LayoutElement(
-            x=float(bbox[0]),
-            y=float(bbox[1]),
-            content=content,
+            x=min(element.x for element in ordered),
+            y=min(element.y for element in ordered),
+            x2=max(
+                element.x2 if element.x2 is not None else element.x
+                for element in ordered
+            ),
+            y2=max(
+                element.y2 if element.y2 is not None else element.y
+                for element in ordered
+            ),
+            content=" ".join(element.content for element in ordered),
             source="text",
         )
 
@@ -184,6 +253,16 @@ class PdfExtractor(TextExtractor):
                 LayoutElement(
                     x=x0 + element.x * scale_x,
                     y=y0 + element.y * scale_y,
+                    x2=(
+                        x0 + element.x2 * scale_x
+                        if element.x2 is not None
+                        else None
+                    ),
+                    y2=(
+                        y0 + element.y2 * scale_y
+                        if element.y2 is not None
+                        else None
+                    ),
                     content=element.content,
                     source="ocr",
                     confidence=element.confidence,
@@ -219,6 +298,8 @@ class PdfExtractor(TextExtractor):
                 LayoutElement(
                     x=element.x / scale,
                     y=element.y / scale,
+                    x2=(element.x2 / scale if element.x2 is not None else None),
+                    y2=(element.y2 / scale if element.y2 is not None else None),
                     content=element.content,
                     source="ocr",
                     confidence=element.confidence,
