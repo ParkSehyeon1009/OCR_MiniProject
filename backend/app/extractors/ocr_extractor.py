@@ -7,6 +7,7 @@ from paddleocr import PaddleOCR
 from PIL import Image
 
 from app.extractors.layout import LayoutElement
+from app.extractors.reading_order import build_reading_groups
 from app.extractors.table_detector import TableCell, TableDetector
 
 from app.extractors.preprocessing import (
@@ -141,6 +142,7 @@ class OcrExtractor:
         return self._merge_document_elements(
             elements,
             table_cells,
+            page_width=float(source_image.width),
             offset_x=offset_x,
             offset_y=offset_y,
         )
@@ -151,11 +153,17 @@ class OcrExtractor:
         elements: list[LayoutElement],
         table_cells: list[TableCell],
         *,
+        page_width: float,
         offset_x: float,
         offset_y: float,
     ) -> list[LayoutElement]:
         if not table_cells:
-            return cls._merge_same_line_elements(elements)
+            return cls._merge_in_reading_order(
+                elements,
+                [],
+                page_width,
+                page_left=offset_x,
+            )
 
         cell_elements: dict[TableCell, list[LayoutElement]] = {
             cell: [] for cell in table_cells
@@ -177,17 +185,47 @@ class OcrExtractor:
             else:
                 cell_elements[containing_cell].append(element)
 
-        merged = cls._merge_same_line_elements(outside_elements)
-        merged.extend(
-            cls._build_table_rows(
-                table_cells,
-                cell_elements,
-                offset_x=offset_x,
-                offset_y=offset_y,
-            )
+        table_rows = cls._build_table_rows(
+            table_cells,
+            cell_elements,
+            offset_x=offset_x,
+            offset_y=offset_y,
         )
-        merged.sort(key=lambda element: (element.y, element.x))
-        return merged
+        return cls._merge_in_reading_order(
+            outside_elements,
+            table_rows,
+            page_width,
+            page_left=offset_x,
+        )
+
+    @classmethod
+    def _merge_in_reading_order(
+        cls,
+        elements: list[LayoutElement],
+        atomic_elements: list[LayoutElement],
+        page_width: float,
+        *,
+        page_left: float = 0,
+    ) -> list[LayoutElement]:
+        groups = build_reading_groups(
+            elements,
+            atomic_elements,
+            page_width=page_width,
+            page_left=page_left,
+        )
+        if groups is None:
+            merged = cls._merge_same_line_elements(elements)
+            merged.extend(atomic_elements)
+            merged.sort(key=lambda element: (element.y, element.x))
+            return merged
+
+        ordered: list[LayoutElement] = []
+        for group in groups:
+            if group.atomic:
+                ordered.extend(group.elements)
+            else:
+                ordered.extend(cls._merge_same_line_elements(group.elements))
+        return ordered
 
     @classmethod
     def _build_table_rows(

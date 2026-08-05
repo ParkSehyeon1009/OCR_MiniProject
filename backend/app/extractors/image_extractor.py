@@ -14,8 +14,6 @@ class ImageExtractor(TextExtractor):
             image = source_image.copy()
             elements = self._ocr.extract(image)
 
-        elements.sort(key=lambda element: (element.y, element.x))
-
         content = "\n".join(
             element.content
             for element in elements

@@ -10,6 +10,7 @@ from app.core.exceptions import BusinessError
 from app.extractors.layout import LayoutElement
 from app.extractors.ocr_extractor import OcrExtractor
 from app.extractors.protocol import ExtractResult, TextExtractor
+from app.extractors.reading_order import build_reading_groups
 from app.models.enums import ExtractMethod
 
 
@@ -40,8 +41,18 @@ class PdfExtractor(TextExtractor):
                 has_text = has_text or page_has_text
                 has_ocr = has_ocr or page_has_ocr
 
-                elements = self._merge_text_layer_elements(elements)
-                elements.sort(key=lambda element: (element.y, element.x))
+                if page_has_text and not page_has_ocr:
+                    elements = self._order_text_layer_elements(
+                        elements,
+                        page_width=float(page.rect.width),
+                        page_left=float(page.rect.x0),
+                    )
+                elif page_has_text:
+                    elements = self._order_hybrid_elements(
+                        elements,
+                        page_width=float(page.rect.width),
+                        page_left=float(page.rect.x0),
+                    )
 
                 page_content = "\n".join(
                     element.content
@@ -77,7 +88,9 @@ class PdfExtractor(TextExtractor):
         has_text = False
         has_ocr = False
 
-        for block in page_dict.get("blocks", []):
+        blocks = page_dict.get("blocks", [])
+
+        for block in blocks:
             block_type = block.get("type")
 
             if block_type == 0:
@@ -87,7 +100,10 @@ class PdfExtractor(TextExtractor):
                     elements.extend(text_elements)
                     has_text = True
 
-            elif block_type == 1:
+        for block in blocks:
+            if block.get("type") == 1:
+                if self._image_contains_text_layer(block, elements):
+                    continue
                 image_elements = self._extract_image_block(block)
 
                 if image_elements:
@@ -103,6 +119,29 @@ class PdfExtractor(TextExtractor):
                 has_ocr = True
 
         return elements, has_text, has_ocr
+
+    @staticmethod
+    def _image_contains_text_layer(
+        block: dict[str, Any],
+        text_elements: list[LayoutElement],
+    ) -> bool:
+        bbox = block.get("bbox", (0, 0, 0, 0))
+        x0, y0, x1, y1 = (float(value) for value in bbox)
+        contained_count = 0
+
+        for element in text_elements:
+            if element.source != "text":
+                continue
+            element_x2 = element.x2 if element.x2 is not None else element.x
+            element_y2 = element.y2 if element.y2 is not None else element.y
+            center_x = (element.x + element_x2) / 2
+            center_y = (element.y + element_y2) / 2
+            if x0 <= center_x <= x1 and y0 <= center_y <= y1:
+                contained_count += 1
+                if contained_count >= 2:
+                    return True
+
+        return False
 
     @staticmethod
     def _extract_text_block(
@@ -135,6 +174,64 @@ class PdfExtractor(TextExtractor):
                 )
 
         return elements
+
+    @classmethod
+    def _order_text_layer_elements(
+        cls,
+        elements: list[LayoutElement],
+        *,
+        page_width: float,
+        page_left: float,
+    ) -> list[LayoutElement]:
+        groups = build_reading_groups(
+            elements,
+            [],
+            page_width=page_width,
+            page_left=page_left,
+        )
+        if groups is None:
+            merged = cls._merge_text_layer_elements(elements)
+            merged.sort(key=lambda element: (element.y, element.x))
+            return merged
+
+        ordered: list[LayoutElement] = []
+        for group in groups:
+            ordered.extend(cls._merge_text_layer_elements(group.elements))
+        return ordered
+
+    @classmethod
+    def _order_hybrid_elements(
+        cls,
+        elements: list[LayoutElement],
+        *,
+        page_width: float,
+        page_left: float,
+    ) -> list[LayoutElement]:
+        text_elements = [
+            element for element in elements if element.source == "text"
+        ]
+        image_ocr_blocks = [
+            element for element in elements if element.source == "ocr"
+        ]
+        groups = build_reading_groups(
+            text_elements,
+            image_ocr_blocks,
+            page_width=page_width,
+            page_left=page_left,
+        )
+        if groups is None:
+            merged = cls._merge_text_layer_elements(text_elements)
+            merged.extend(image_ocr_blocks)
+            merged.sort(key=lambda element: (element.y, element.x))
+            return merged
+
+        ordered: list[LayoutElement] = []
+        for group in groups:
+            if group.atomic:
+                ordered.extend(group.elements)
+            else:
+                ordered.extend(cls._merge_text_layer_elements(group.elements))
+        return ordered
 
     @classmethod
     def _merge_text_layer_elements(
@@ -240,39 +337,37 @@ class PdfExtractor(TextExtractor):
         x1 = float(bbox[2])
         y1 = float(bbox[3])
 
-        displayed_width = max(x1 - x0, 1.0)
-        displayed_height = max(y1 - y0, 1.0)
+        content = "\n".join(
+            element.content
+            for element in ocr_elements
+            if element.content.strip()
+        )
+        recognized_char_count = sum(character.isalnum() for character in content)
+        if not content or recognized_char_count < 2:
+            return []
 
-        scale_x = displayed_width / image_width
-        scale_y = displayed_height / image_height
+        confidences = [
+            element.confidence
+            for element in ocr_elements
+            if element.confidence is not None
+        ]
+        confidence = (
+            sum(confidences) / len(confidences)
+            if confidences
+            else None
+        )
 
-        converted_elements: list[LayoutElement] = []
-
-        for element in ocr_elements:
-            # OCR 결과의 이미지 픽셀 좌표를 PDF 페이지 좌표로 변환한다.
-            # 이 변환을 해야 텍스트 블록과 이미지 내부 글자를 같은 기준으로
-            # 정렬할 수 있다.
-            converted_elements.append(
-                LayoutElement(
-                    x=x0 + element.x * scale_x,
-                    y=y0 + element.y * scale_y,
-                    x2=(
-                        x0 + element.x2 * scale_x
-                        if element.x2 is not None
-                        else None
-                    ),
-                    y2=(
-                        y0 + element.y2 * scale_y
-                        if element.y2 is not None
-                        else None
-                    ),
-                    content=element.content,
-                    source="ocr",
-                    confidence=element.confidence,
-                )
+        return [
+            LayoutElement(
+                x=x0,
+                y=y0,
+                x2=x1,
+                y2=y1,
+                content=content,
+                source="ocr",
+                confidence=confidence,
             )
-
-        return converted_elements
+        ]
 
     def _extract_full_page_with_ocr(
         self,
