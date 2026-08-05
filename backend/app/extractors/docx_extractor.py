@@ -131,7 +131,7 @@ class DocxExtractor(TextExtractor):
     def _ocr_image(self, image_bytes: bytes) -> str:
         try:
             with Image.open(BytesIO(image_bytes)) as source_image:
-                image = source_image.convert("RGB")
+                image = source_image.copy()
                 elements = self._ocr.extract(image)
 
             elements.sort(key=lambda element: (element.y, element.x))

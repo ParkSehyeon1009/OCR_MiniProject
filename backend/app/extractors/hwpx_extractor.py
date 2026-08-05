@@ -140,7 +140,7 @@ class HwpxExtractor(TextExtractor):
 
         try:
             with Image.open(BytesIO(image_bytes)) as source_image:
-                image = source_image.convert("RGB")
+                image = source_image.copy()
                 elements = self._ocr.extract(image)
         except (UnidentifiedImageError, OSError):
             # HWPX 내부에 Pillow가 해석하지 못하는 이미지가 있어도

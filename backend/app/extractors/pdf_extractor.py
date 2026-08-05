@@ -216,7 +216,7 @@ class PdfExtractor(TextExtractor):
 
         try:
             with Image.open(BytesIO(image_bytes)) as source_image:
-                image = source_image.convert("RGB")
+                image = source_image.copy()
 
                 image_width = image.width
                 image_height = image.height
@@ -224,7 +224,10 @@ class PdfExtractor(TextExtractor):
                 if image_width <= 0 or image_height <= 0:
                     return []
 
-                ocr_elements = self._ocr.extract(image)
+                ocr_elements = self._ocr.extract(
+                    image,
+                    normalize_orientation=False,
+                )
 
         except (UnidentifiedImageError, OSError, ValueError):
             return []
@@ -288,7 +291,10 @@ class PdfExtractor(TextExtractor):
             pixmap.samples,
         )
 
-        ocr_elements = self._ocr.extract(image)
+        ocr_elements = self._ocr.extract(
+            image,
+            normalize_orientation=False,
+        )
 
         converted_elements: list[LayoutElement] = []
 

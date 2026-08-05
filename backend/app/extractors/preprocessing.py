@@ -10,12 +10,12 @@
 #   각 단계가 독립 함수라서 순서 변경·추가·제거가 자유롭다.
 # =============================================================================
 
+from dataclasses import dataclass, field
 from typing import Callable
 
 import cv2
 import numpy as np
-from PIL import Image
-from dataclasses import dataclass, field
+from PIL import Image, ImageOps
 
 
 # OCR은 해상도에 민감하다. 이 폭보다 작으면 확대한다.
@@ -28,6 +28,29 @@ MAX_UPSCALE = 2.0
 MIN_DESKEW_ANGLE = 0.5
 
 PreprocessStep = Callable[[Image.Image], Image.Image]
+
+
+@dataclass(frozen=True)
+class ImageQuality:
+    contrast: float
+    blur_score: float
+    noise_score: float
+    illumination_score: float
+    color_ratio: float
+    text_height: float | None
+    dark_background: bool
+    rotation_suspected: bool
+    perspective_score: float
+
+
+@dataclass(frozen=True)
+class OcrPreprocessPlan:
+    steps: list[PreprocessStep]
+    reasons: list[str]
+    use_doc_orientation_classify: bool = False
+    use_doc_unwarping: bool = False
+    use_textline_orientation: bool = False
+
 
 @dataclass(frozen=True)
 class PreprocessResult:
@@ -49,6 +72,27 @@ class PreprocessResult:
 def to_grayscale(image: Image.Image) -> Image.Image:
     """색 정보를 제거한다. 글자 인식에 색상은 쓰이지 않는다."""
     return image if image.mode == "L" else image.convert("L")
+
+
+def normalize_input_image(
+    image: Image.Image,
+    *,
+    apply_exif_orientation: bool = True,
+) -> Image.Image:
+    """EXIF 방향을 반영하고 투명 영역을 흰 배경으로 합성한다."""
+    normalized = (
+        ImageOps.exif_transpose(image)
+        if apply_exif_orientation
+        else image.copy()
+    )
+
+    if normalized.mode in {"RGBA", "LA"} or "transparency" in normalized.info:
+        rgba = normalized.convert("RGBA")
+        background = Image.new("RGBA", rgba.size, "white")
+        normalized = Image.alpha_composite(background, rgba)
+
+    return normalized.convert("RGB")
+
 
 def upscale(image: Image.Image) -> Image.Image:
     """폭이 MIN_WIDTH 미만이면 비율을 유지해 확대한다."""
@@ -77,6 +121,42 @@ def binarize(image: Image.Image) -> Image.Image:
         array, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
     )
     return Image.fromarray(binary)
+
+
+def adaptive_binarize(image: Image.Image) -> Image.Image:
+    """조명이 고르지 않은 흑백 문서를 영역별 임계값으로 이진화한다."""
+    array = np.asarray(to_grayscale(image))
+    block_size = _adaptive_block_size(array)
+    if block_size is None:
+        return binarize(image)
+    binary = cv2.adaptiveThreshold(
+        array,
+        255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY,
+        block_size,
+        15,
+    )
+    return Image.fromarray(binary)
+
+
+def _adaptive_block_size(array: np.ndarray, preferred: int = 31) -> int | None:
+    size = min(preferred, int(min(array.shape[:2])))
+    if size % 2 == 0:
+        size -= 1
+    return size if size >= 3 else None
+
+
+def invert(image: Image.Image) -> Image.Image:
+    """어두운 배경과 밝은 글자를 일반 문서 명암으로 반전한다."""
+    return ImageOps.invert(to_grayscale(image))
+
+
+def sharpen(image: Image.Image) -> Image.Image:
+    """약하게 흐린 문서의 글자 경계만 보수적으로 강조한다."""
+    array = np.asarray(to_grayscale(image))
+    blurred = cv2.GaussianBlur(array, (0, 0), 1.0)
+    return Image.fromarray(cv2.addWeighted(array, 1.35, blurred, -0.35, 0))
 
 def deskew(image: Image.Image) -> Image.Image:
     """글자 영역의 최소 외접 사각형으로 기울기를 추정해 회전 보정한다."""
@@ -115,6 +195,199 @@ def adjust_contrast(image: Image.Image) -> Image.Image:
     array = np.asarray(to_grayscale(image))
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
     return Image.fromarray(clahe.apply(array))
+
+
+def analyze_image(image: Image.Image, max_width: int = 800) -> ImageQuality:
+    """축소 복사본으로 OCR 전처리에 필요한 품질 지표를 계산한다."""
+    sample = image.convert("RGB")
+    analysis_scale = min(
+        1.0,
+        max_width / max(sample.width, sample.height, 1),
+    )
+    if analysis_scale < 1.0:
+        sample = sample.resize(
+            (
+                max(1, round(sample.width * analysis_scale)),
+                max(1, round(sample.height * analysis_scale)),
+            ),
+            Image.Resampling.BILINEAR,
+        )
+
+    rgb = np.asarray(sample)
+    gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+    contrast = float(np.percentile(gray, 95) - np.percentile(gray, 5))
+    blur_score = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    median = cv2.medianBlur(gray, 3)
+    noise_score = float(cv2.absdiff(gray, median).mean())
+
+    background = cv2.GaussianBlur(gray, (0, 0), 15.0)
+    illumination_score = float(background.std())
+
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    color_ratio = float((hsv[:, :, 1] > 40).mean())
+    border = np.concatenate((gray[0], gray[-1], gray[:, 0], gray[:, -1]))
+    dark_background = bool(np.median(border) < 100 and gray.mean() < 135)
+
+    block_size = _adaptive_block_size(gray)
+    if block_size is None:
+        _, binary = cv2.threshold(
+            gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
+        )
+    else:
+        binary = cv2.adaptiveThreshold(
+            gray,
+            255,
+            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv2.THRESH_BINARY_INV,
+            block_size,
+            15,
+        )
+    count, _, stats, _ = cv2.connectedComponentsWithStats(binary, connectivity=8)
+    heights = [
+        int(stats[index, cv2.CC_STAT_HEIGHT])
+        for index in range(1, count)
+        if 3 <= stats[index, cv2.CC_STAT_WIDTH] <= 80
+        and 4 <= stats[index, cv2.CC_STAT_HEIGHT] <= 80
+        and stats[index, cv2.CC_STAT_AREA] >= 8
+    ]
+    text_height = (
+        float(np.median(heights)) / analysis_scale
+        if heights and analysis_scale > 0
+        else None
+    )
+
+    ink = binary.astype(np.float32) / 255.0
+    row_variation = float(ink.mean(axis=1).std())
+    column_variation = float(ink.mean(axis=0).std())
+    rotation_suspected = column_variation > row_variation * 1.5
+    perspective_score = _measure_perspective_score(gray)
+
+    return ImageQuality(
+        contrast=contrast,
+        blur_score=blur_score,
+        noise_score=noise_score,
+        illumination_score=illumination_score,
+        color_ratio=color_ratio,
+        text_height=text_height,
+        dark_background=dark_background,
+        rotation_suspected=rotation_suspected,
+        perspective_score=perspective_score,
+    )
+
+
+def _measure_perspective_score(gray: np.ndarray) -> float:
+    edges = cv2.Canny(gray, 50, 150)
+    edges = cv2.morphologyEx(
+        edges,
+        cv2.MORPH_CLOSE,
+        cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5)),
+    )
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    image_area = float(gray.shape[0] * gray.shape[1])
+    if not contours or image_area <= 0:
+        return 0.0
+
+    contour = max(contours, key=cv2.contourArea)
+    if cv2.contourArea(contour) < image_area * 0.30:
+        return 0.0
+
+    perimeter = cv2.arcLength(contour, True)
+    polygon = cv2.approxPolyDP(contour, 0.02 * perimeter, True)
+    if len(polygon) != 4:
+        return 0.0
+
+    points = polygon.reshape(4, 2).astype(np.float32)
+    ordered = points[np.argsort(points[:, 1])]
+    top = ordered[:2][np.argsort(ordered[:2, 0])]
+    bottom = ordered[2:][np.argsort(ordered[2:, 0])]
+    top_width = float(np.linalg.norm(top[1] - top[0]))
+    bottom_width = float(np.linalg.norm(bottom[1] - bottom[0]))
+    left_height = float(np.linalg.norm(bottom[0] - top[0]))
+    right_height = float(np.linalg.norm(bottom[1] - top[1]))
+
+    width_score = abs(top_width - bottom_width) / max(top_width, bottom_width, 1.0)
+    height_score = abs(left_height - right_height) / max(
+        left_height, right_height, 1.0
+    )
+    return max(width_score, height_score)
+
+
+def select_preprocess_plan(image: Image.Image, quality: ImageQuality) -> OcrPreprocessPlan:
+    """측정 결과에 따라 좌표 안전한 전처리와 Paddle 선택 모듈을 고른다."""
+    selected: set[PreprocessStep] = set()
+    reasons: list[str] = []
+    low_color = quality.color_ratio < 0.02
+
+    if quality.text_height is not None:
+        should_upscale = image.width < MIN_WIDTH and quality.text_height < 18
+    else:
+        should_upscale = image.width < 700
+    if should_upscale:
+        selected.add(upscale)
+        reasons.append("글자 또는 이미지 크기가 작아 확대")
+
+    if quality.dark_background:
+        selected.update({to_grayscale, invert})
+        reasons.append("어두운 배경과 밝은 글자가 감지되어 반전")
+    elif low_color and quality.contrast < 70:
+        selected.update({to_grayscale, adjust_contrast})
+        reasons.append("흑백 문서의 대비가 낮아 CLAHE 적용")
+
+    if low_color and quality.noise_score > 10:
+        selected.update({to_grayscale, denoise})
+        reasons.append("점 형태의 노이즈가 많아 제거")
+
+    if low_color and quality.contrast < 55:
+        selected.add(to_grayscale)
+        if quality.illumination_score >= 18:
+            selected.add(adaptive_binarize)
+            reasons.append("조명이 불균일해 적응형 이진화")
+        else:
+            selected.add(binarize)
+            reasons.append("조명이 균일한 저대비 문서라 Otsu 이진화")
+
+    has_binarization = binarize in selected or adaptive_binarize in selected
+    if (
+        quality.text_height is not None
+        and quality.blur_score < 45
+        and quality.noise_score < 6
+        and not has_binarization
+    ):
+        selected.update({to_grayscale, sharpen})
+        reasons.append("약한 흐림이 감지되어 글자 경계 강조")
+
+    order = [
+        to_grayscale,
+        upscale,
+        adjust_contrast,
+        denoise,
+        invert,
+        binarize,
+        adaptive_binarize,
+        sharpen,
+    ]
+    steps = [step for step in order if step in selected]
+    return OcrPreprocessPlan(
+        steps=steps,
+        reasons=reasons or ["품질이 충분해 원본 RGB 사용"],
+        use_doc_orientation_classify=quality.rotation_suspected,
+        use_doc_unwarping=quality.perspective_score >= 0.12,
+        use_textline_orientation=quality.rotation_suspected,
+    )
+
+
+def build_preprocess_plan(
+    image: Image.Image,
+) -> tuple[ImageQuality | None, OcrPreprocessPlan]:
+    """분석 실패 시 원본을 쓰는 안전한 자동 전처리 진입점."""
+    try:
+        quality = analyze_image(image)
+        return quality, select_preprocess_plan(image, quality)
+    except (cv2.error, ValueError, TypeError):
+        return None, OcrPreprocessPlan(
+            steps=[],
+            reasons=["이미지 분석 실패로 원본 RGB 사용"],
+        )
 
 
 # --- 좌표를 바꾸지 않거나 배율로 되돌릴 수 있는 단계들 --------------------
@@ -166,8 +439,10 @@ def preprocess(
     result = image
 
     for step in steps if steps is not None else PRESET_LIGHT:
-        result = step(result)
-        applied.append(step.__name__)
+        next_result = step(result)
+        if next_result is not result:
+            applied.append(step.__name__)
+        result = next_result
 
     # OCR 엔진은 3채널 이미지를 기대한다.
     if result.mode != "RGB":

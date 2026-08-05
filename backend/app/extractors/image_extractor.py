@@ -11,7 +11,7 @@ class ImageExtractor(TextExtractor):
 
     def extract(self, file_path: str) -> ExtractResult:
         with Image.open(file_path) as source_image:
-            image = source_image.convert("RGB")
+            image = source_image.copy()
             elements = self._ocr.extract(image)
 
         elements.sort(key=lambda element: (element.y, element.x))
