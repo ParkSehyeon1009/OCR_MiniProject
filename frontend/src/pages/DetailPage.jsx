@@ -15,7 +15,11 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import DocumentDetail from '../components/DocumentDetail'
 import Spinner from '../components/Spinner'
 import ErrorBanner from '../components/ErrorBanner'
-import { getDocument, analyzeDocument, downloadSummary } from '../api/document'
+import { getDocument, 
+  analyzeDocument, 
+  downloadSummary,
+  deleteDocument,
+} from '../api/document'
 import './DetailPage.css'
 
 export default function DetailPage() {
@@ -30,6 +34,7 @@ export default function DetailPage() {
   // 분석·다운로드처럼 이미 뜬 문서 위에서 실패한 경우 (문서는 계속 보여준다)
   const [actionError, setActionError] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
+  const {deleting, setDeleting} = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -71,6 +76,26 @@ export default function DetailPage() {
     }
   }
 
+  async function handleDelete() {
+    const confirmed = window.confirm(
+      `'${document.filename}' 을(를) 삭제할까요?` +
+        '추출 원문과 분석 결과, 업로드된 원본 파일이 함께 삭제되며 되돌릴 수 없습니다.'
+    )
+    if (!confirmed) return
+
+    setDeleting(true)
+    setActionError(null)
+    try {
+      await deleteDocument(id)
+      // 삭제된 문서의 상세 화면에 머무를 수 없으므로 목록으로 이동한다.
+      navigate('/documents', { replace: true })
+    } catch (err) {
+      setActionError(err)
+      setDeleting(false)
+    }
+  }
+
+
   /**
    * 목록으로 돌아갈 때, 직전 화면이 목록이면 뒤로가기로 처리해 검색 조건과
    * 페이지 번호를 그대로 유지한다. 상세 URL 로 바로 들어온 경우엔 히스토리가
@@ -109,7 +134,9 @@ export default function DetailPage() {
             document={document}
             onAnalyze={handleAnalyze}
             onDownload={handleDownload}
+            onDelete={handleDelete}
             analyzing={analyzing}
+            deleting={deleting}
           />
         </>
       )}

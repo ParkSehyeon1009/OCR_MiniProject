@@ -108,3 +108,15 @@ def download_summary(
         media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": disposition},
     )
+
+@router.delete("/documents/{document_id}", status_code=204)
+def delete_document(
+    document_id: int,
+    service: DocumentService = Depends(get_document_service),
+) -> Response:
+    """문서와 연관 데이터(추출 텍스트·분석 결과)를 삭제한다.
+
+    본문이 없는 응답이므로 204 No Content 를 반환한다.
+    """
+    service.delete_document(document_id)
+    return Response(status_code=204)

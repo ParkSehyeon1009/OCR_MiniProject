@@ -71,6 +71,17 @@
   color: #ffffff;
 }
 
+/* 되돌릴 수 없는 동작이므로 다른 버튼과 시각적으로 구분한다 */
+.btn--danger {
+  border-color: rgba(180, 35, 24, 0.35);
+  color: var(--c-danger);
+}
+
+.btn--danger:hover:not(:disabled) {
+  background: var(--c-danger-bg);
+}
+
+
 .btn--primary:hover:not(:disabled) {
   filter: brightness(1.08);
   background: var(--c-accent);
