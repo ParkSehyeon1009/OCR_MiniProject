@@ -34,7 +34,7 @@ export default function DetailPage() {
   // 분석·다운로드처럼 이미 뜬 문서 위에서 실패한 경우 (문서는 계속 보여준다)
   const [actionError, setActionError] = useState(null)
   const [analyzing, setAnalyzing] = useState(false)
-  const {deleting, setDeleting} = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)

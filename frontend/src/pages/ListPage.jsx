@@ -19,6 +19,9 @@ import Badge from '../components/Badge'
 import Spinner from '../components/Spinner'
 import ErrorBanner from '../components/ErrorBanner'
 import DocumentDetail from '../components/DocumentDetail'
+import EmptyState from '../components/ui/EmptyState'
+import Icon from '../components/ui/Icon'
+import PageHeader from '../components/ui/PageHeader'
 import {
   listDocuments,
   getDocument,
@@ -212,31 +215,35 @@ export default function ListPage() {
 
   return (
     <div className="c-scope list-page">
-      <header className="list-page__head">
-        <div>
-          <h1 className="list-page__title">문서 목록</h1>
-          {data && (
-            <p className="list-page__total">
-              전체 <strong>{data.total}</strong>건
-              {hasFilter && ' (검색 결과)'}
-            </p>
-          )}
-        </div>
-        <Link to="/upload" className="list-page__upload-link">
-          새 문서 업로드
-        </Link>
-      </header>
+      <PageHeader
+        eyebrow="DOCUMENT LIBRARY"
+        title="문서 목록"
+        description="업로드한 문서를 검색하고, 추출 원문과 AI 분석 결과를 한곳에서 관리하세요."
+        meta={data && (
+          <span className="list-page__total">
+            {hasFilter ? '검색 결과' : '전체'} <strong>{data.total}</strong>건
+          </span>
+        )}
+        actions={(
+          <Link to="/upload" className="btn btn--primary">
+            <Icon name="upload" size={16} /> 새 문서 업로드
+          </Link>
+        )}
+      />
 
       {/* ------------------------------------------------------- 검색 영역 */}
       <form className="list-page__search" onSubmit={handleSubmit} role="search">
-        <input
-          type="search"
-          className="list-page__input"
-          placeholder="파일명 또는 본문 내용 검색"
-          value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
-          aria-label="검색어"
-        />
+        <label className="list-page__search-field">
+          <Icon name="search" size={18} />
+          <input
+            type="search"
+            className="list-page__input"
+            placeholder="파일명 또는 본문 내용 검색"
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            aria-label="검색어"
+          />
+        </label>
 
         <select
           className="list-page__select"
@@ -294,9 +301,14 @@ export default function ListPage() {
                       <tr>
                         {/* 검색 결과 없음과 데이터 없음을 구분해 안내한다 */}
                         <td colSpan={5} className="list-table__empty">
-                          {hasFilter
-                            ? '조건에 맞는 문서가 없습니다.'
-                            : '업로드된 문서가 없습니다. 먼저 문서를 업로드해 주세요.'}
+                          <EmptyState
+                            icon={hasFilter ? 'search' : 'documents'}
+                            title={hasFilter ? '검색 결과가 없습니다' : '아직 문서가 없습니다'}
+                            description={hasFilter
+                              ? '검색어나 카테고리를 바꿔 다시 찾아보세요.'
+                              : '첫 문서를 업로드하면 추출과 분석 결과를 여기에서 관리할 수 있습니다.'}
+                            action={hasFilter ? undefined : { to: '/upload', label: '문서 업로드' }}
+                          />
                         </td>
                       </tr>
                     ) : (

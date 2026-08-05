@@ -1,8 +1,14 @@
-
 import { NavLink, Outlet } from 'react-router-dom'
+import Icon from '../components/ui/Icon'
 import './MainLayout.css'
 
-// isActive 를 받아 현재 메뉴를 강조한다 (react-router 가 넘겨준다).
+const NAV_ITEMS = [
+  { to: '/', label: '홈', icon: 'home', end: true },
+  { to: '/documents', label: '문서', icon: 'documents' },
+  { to: '/upload', label: '업로드', icon: 'upload' },
+  { to: '/ocr-compare', label: 'OCR 비교', icon: 'compare' },
+]
+
 function navClass({ isActive }) {
   return isActive ? 'main-nav__link main-nav__link--active' : 'main-nav__link'
 }
@@ -11,38 +17,30 @@ export default function MainLayout() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <NavLink to="/" className="app-brand">
-          PDF Brief <span>AI</span>
-        </NavLink>
+        <div className="app-header__inner">
+          <NavLink to="/" className="app-brand" aria-label="PDF Brief AI 홈">
+            <span className="app-brand__mark"><Icon name="sparkles" size={18} /></span>
+            <span className="app-brand__text">PDF Brief <strong>AI</strong></span>
+          </NavLink>
 
-        <nav className="main-nav">
-          {/* end: "/" 는 정확히 일치할 때만 활성화 (없으면 항상 활성 상태가 된다) */}
-          <NavLink to="/" className={navClass} end>
-            홈
-          </NavLink>
-          <NavLink to="/documents" className={navClass}>
-            문서 목록
-          </NavLink>
-          <NavLink to="/ocr-compare" className={navClass}>
-            OCR 비교
-          </NavLink>
-        </nav>
+          <nav className="main-nav" aria-label="주요 메뉴">
+            {NAV_ITEMS.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.end}
+                className={navClass}
+              >
+                <Icon name={item.icon} size={17} />
+                <span>{item.label}</span>
+              </NavLink>
+            ))}
+          </nav>
 
-        {/* --- 인증 삽입 지점 ---
-            로그인 도입 시: 비로그인은 <Link to="/login">, 로그인 상태는
-            사용자명 + 드롭다운(로그아웃)으로 교체한다. 헤더 밖 코드는 손대지 않는다. */}
-        <button
-          type="button"
-          className="app-user"
-          title="로그인"
-          aria-label="로그인"
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none"
-               stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 20c0-4 3.6-6 8-6s8 2 8 6" />
-          </svg>
-        </button>
+          <button type="button" className="app-user" title="로그인 준비 중" aria-label="사용자 메뉴">
+            <Icon name="user" size={18} />
+          </button>
+        </div>
       </header>
 
       <main className="app-main">
