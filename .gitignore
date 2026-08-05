@@ -51,3 +51,7 @@ desktop.ini
 *.db
 *.sqlite3
 pgdata/
+
+
+
+docker-compose.override.yml
