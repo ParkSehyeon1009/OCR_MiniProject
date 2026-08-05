@@ -10,7 +10,8 @@
 #   않으므로, 검색·페이징 쿼리를 SQLAlchemy Query API로 직접 작성한다.
 # =============================================================================
 
-from sqlalchemy import or_
+import re
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.models.document import Analysis, Document, ExtractedText
@@ -43,14 +44,32 @@ class DocumentRepository:
         query = self._db.query(Document)
 
         if q:
-            # 파일명 또는 본문(extracted_texts.content) 부분검색.
-            # outerjoin 대신 서브쿼리로 매칭 id를 걸러서 join으로 인한 행 중복을 피한다.
-            matching_ids = self._db.query(ExtractedText.document_id).filter(
-                ExtractedText.content.ilike(f"%{q}%")
-            )
-            query = query.filter(
-                or_(Document.filename.ilike(f"%{q}%"), Document.id.in_(matching_ids))
-            )
+            # 자간이 넓은 공문서는 추출 결과에 "제 안 자" 처럼 공백이 섞여 들어간다.
+            # 사용자가 "제안자" 로 검색해도 찾을 수 있도록, 저장된 값과 검색어에서
+            # 공백을 모두 제거한 뒤 비교한다. 반대 경우(원문은 붙어 있고 검색어에
+            # 공백이 있는 경우)도 같이 해결된다.
+            keyword = re.sub(r"\s+", "", q)
+
+            # 공백만 입력된 경우에는 조건을 걸지 않는다 (전체 조회와 같아지는 것을 방지).
+            if keyword:
+                pattern = f"%{keyword}%"
+
+                # 파일명 또는 본문(extracted_texts.content) 부분검색.
+                # outerjoin 대신 서브쿼리로 매칭 id를 걸러서 join으로 인한 행 중복을 피한다.
+                matching_ids = self._db.query(ExtractedText.document_id).filter(
+                    func.regexp_replace(
+                        ExtractedText.content, r"\s", "", "g"
+                    ).ilike(pattern)
+                )
+                query = query.filter(
+                    or_(
+                        func.regexp_replace(
+                            Document.filename, r"\s", "", "g"
+                        ).ilike(pattern),
+                        Document.id.in_(matching_ids),
+                    )
+                )
+
 
         if document_type:
             query = query.filter(Document.document_type == document_type)
